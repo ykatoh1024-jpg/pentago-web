@@ -407,6 +407,12 @@ useEffect(() => {
             }}
           >
 
+            {/* カード下の装飾 */}
+            <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+              <MiniBoardDecorationBelow />
+            </div>
+
+
             {/* タイトル */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
@@ -876,4 +882,80 @@ function MiniBoardDecoration() {
     </div>
   );
 }
+
+function MiniBoardDecorationBelow() {
+  const size = 150;
+
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: size,
+        height: size,
+        opacity: 0.16,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: 18,
+          border: "1px solid rgba(17,24,39,0.28)",
+          background:
+            "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(16,185,129,0.12))",
+          boxShadow: "0 12px 22px rgba(0,0,0,0.08)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* 6x6の薄いグリッド */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 10,
+            display: "grid",
+            gridTemplateColumns: "repeat(6, 1fr)",
+            gap: 6,
+          }}
+        >
+          {Array.from({ length: 36 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                borderRadius: 999,
+                background: "rgba(17,24,39,0.20)",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* 象限の仕切り */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: 10,
+            bottom: 10,
+            width: 1,
+            background: "rgba(17,24,39,0.30)",
+            transform: "translateX(-0.5px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 10,
+            right: 10,
+            height: 1,
+            background: "rgba(17,24,39,0.30)",
+            transform: "translateY(-0.5px)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 
