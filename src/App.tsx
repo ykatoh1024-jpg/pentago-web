@@ -370,6 +370,20 @@ useEffect(() => {
           paddingTop: 48,
         }}
       >
+        {/* カード下の装飾エリア */}
+        <div
+          style={{
+            marginTop: 28,
+            display: "flex",
+            justifyContent: "center",
+            opacity: 0.18,
+            pointerEvents: "none",
+          }}
+        >
+          <MiniBoardDecoration />
+          
+        </div>
+
         <div
           style={{
             width: "100%",
@@ -379,7 +393,7 @@ useEffect(() => {
           }}
         >
 
-          {/* ヒーローカード */}
+          {/* 白いカード */}
           <div
             style={{
               background: "rgba(255,255,255,0.86)",
@@ -388,8 +402,12 @@ useEffect(() => {
               padding: 20,
               boxShadow: "0 18px 50px rgba(0,0,0,0.10)",
               backdropFilter: "blur(10px)",
+              position: "relative", 
+              overflow: "hidden", 
             }}
           >
+            <MiniBoardDecoration />
+
             {/* タイトル */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
@@ -775,3 +793,88 @@ useEffect(() => {
     </div>
   );
 }
+
+function MiniBoardDecoration() {
+  const size = 170; // 装飾の大きさ（好みで 150〜200）
+  const cell = Math.floor(size / 6);
+
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        top: -18,
+        right: -18,
+        width: size,
+        height: size,
+        transform: "rotate(10deg)",
+        opacity: 0.16,
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: 18,
+          border: "1px solid rgba(17,24,39,0.35)",
+          background:
+            "linear-gradient(135deg, rgba(99,102,241,0.20), rgba(16,185,129,0.16))",
+          boxShadow: "0 18px 30px rgba(0,0,0,0.08)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* 6x6の薄いグリッド */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 10,
+            display: "grid",
+            gridTemplateColumns: "repeat(6, 1fr)",
+            gap: 6,
+          }}
+        >
+          {Array.from({ length: 36 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                width: cell - 6,
+                height: cell - 6,
+                borderRadius: 999,
+                background: "rgba(17,24,39,0.22)",
+                filter: "blur(0.1px)",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* 象限の仕切り（ペンタゴっぽさ） */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: 10,
+            bottom: 10,
+            width: 1,
+            background: "rgba(17,24,39,0.35)",
+            transform: "translateX(-0.5px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 10,
+            right: 10,
+            height: 1,
+            background: "rgba(17,24,39,0.35)",
+            transform: "translateY(-0.5px)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
