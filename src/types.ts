@@ -5,3 +5,4 @@ export type CellValue = Player | null;
 export type Pos = { x: number; y: number };
 
 export type GameMode = "local" | "ai";
+export type Screen = "home" | "aiSetup" | "game";
