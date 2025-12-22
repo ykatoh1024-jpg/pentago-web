@@ -381,7 +381,7 @@ useEffect(() => {
           }}
         >
           <MiniBoardDecoration />
-          
+
         </div>
 
         <div
@@ -406,7 +406,6 @@ useEffect(() => {
               overflow: "hidden", 
             }}
           >
-            <MiniBoardDecoration />
 
             {/* タイトル */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
