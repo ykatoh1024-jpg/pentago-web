@@ -240,6 +240,8 @@ export default function App() {
   const [winner, setWinner] = useState<Player | "draw" | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [mode, setMode] = useState<GameMode>("local");
+  const [lastMoveText, setLastMoveText] = useState<string>("");
+
 
   // AI用：AI側の色（humanはその逆）
   const [aiSide, setAiSide] = useState<Player | null>(null);
@@ -271,6 +273,7 @@ useEffect(() => {
     setWinner(r.winner);
     setPhase("place");
     setPendingMove(null);
+    setLastMoveText(`AI: (${m.pos.x + 1}, ${m.pos.y + 1}) に置いて、${["左上","右上","左下","右下"][m.quadrant]}を${m.dir === "cw" ? "↻" : "↺"}`);
 
     if (!r.winner) {
       setTurn(aiSide === "white" ? "black" : "white");
@@ -310,6 +313,7 @@ useEffect(() => {
   }
 
   function onTapCell(pos: Pos) {
+    if (mode === "ai" && aiSide && turn === aiSide) return;
     if (phase !== "place") return;
     const cell = board[pos.y]?.[pos.x];
     if (cell !== null) return;
@@ -325,6 +329,7 @@ useEffect(() => {
 
   // ここは次ステップで「回転」ボタンに置き換える
   function proceedToRotatePhase() {
+    if (mode === "ai" && aiSide && turn === aiSide) return;
     if (!pendingMove) return;
     if (winner) return;
     setPhase("rotate");
@@ -383,6 +388,20 @@ useEffect(() => {
             リセット
           </button>
         </div>
+
+          {/* AIの直前の手を表示（ヘッダーの下） */}
+          {mode === "ai" && lastMoveText && (
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.75,
+                marginBottom: 8,
+              }}
+            >
+              {lastMoveText}
+            </div>
+          )}
+
 
         {/* 勝敗表示 */}
         {winner && (
