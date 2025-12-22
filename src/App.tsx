@@ -484,8 +484,6 @@ useEffect(() => {
           {headerText}
         </div>
 
-        <Board board={board} turn={turn} phase={phase} pendingMove={pendingMove} onTapCell={onTapCell} />
-
         {/* 下部操作：まずは「キャンセル」「次へ（回転へ）」だけ */}
         <div style={{ maxWidth: 520, margin: "12px auto 0", display: "flex", gap: 10 }}>
           <button
