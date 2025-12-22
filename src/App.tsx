@@ -242,18 +242,29 @@ export default function App() {
   const [mode, setMode] = useState<GameMode>("local");
   const [lastMoveText, setLastMoveText] = useState<string>("");
 
-
   // AI用：AI側の色（humanはその逆）
   const [aiSide, setAiSide] = useState<Player | null>(null);
 
 
   const canCancel = pendingMove !== null && phase === "place";
 
-  const headerText = useMemo(() => {
-    const turnText = turn === "white" ? "白（先手）" : "黒（後手）";
-    const phaseText = phase === "place" ? "置く" : "回す";
-    return `${turnText}の手番｜${phaseText}`;
-  }, [turn, phase]);
+  const statusText = useMemo(() => {
+  if (winner)
+    return winner === "draw"
+      ? "引き分け！リセットで再戦"
+      : `${winner === "white" ? "白" : "黒"}の勝ち！リセットで再戦`;
+
+  const who = turn === "white" ? "白" : "黒";
+  if (mode === "ai" && aiSide && turn === aiSide) return `AI（${who}）の番…`;
+  if (phase === "place") return `${who}の番：空マスをタップして仮置き`;
+  return `${who}の番：象限を選んで ↺/↻ 回転して確定`;
+}, [winner, turn, phase, mode, aiSide]);
+
+const headerText = useMemo(() => {
+  const turnText = turn === "white" ? "白（先手）" : "黒（後手）";
+  const phaseText = phase === "place" ? "置く" : "回す";
+  return `${turnText}の手番｜${phaseText}`;
+}, [turn, phase]);
 
 useEffect(() => {
   if (mode !== "ai") return;
@@ -313,6 +324,9 @@ useEffect(() => {
   }
 
   function onTapCell(pos: Pos) {
+    const isAiTurn = mode === "ai" && aiSide && turn === aiSide;
+    if (winner) return;
+    if (isAiTurn) return;
     if (mode === "ai" && aiSide && turn === aiSide) return;
     if (phase !== "place") return;
     const cell = board[pos.y]?.[pos.x];
@@ -329,6 +343,9 @@ useEffect(() => {
 
   // ここは次ステップで「回転」ボタンに置き換える
   function proceedToRotatePhase() {
+    const isAiTurn = mode === "ai" && aiSide && turn === aiSide;
+    if (winner) return;
+    if (isAiTurn) return;
     if (mode === "ai" && aiSide && turn === aiSide) return;
     if (!pendingMove) return;
     if (winner) return;
@@ -389,6 +406,21 @@ useEffect(() => {
           </button>
         </div>
 
+        {/* ← ヘッダー直下：ここに置く */}
+        <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 10 }}>
+          {statusText}
+        </div>
+
+        {/* 盤面 */}
+        <Board
+          board={board}
+          turn={turn}
+          phase={phase}
+          pendingMove={pendingMove}
+          onTapCell={onTapCell}
+        />
+
+
           {/* AIの直前の手を表示（ヘッダーの下） */}
           {mode === "ai" && lastMoveText && (
             <div
@@ -409,26 +441,43 @@ useEffect(() => {
             style={{
               marginTop: 12,
               marginBottom: 12,
-              padding: 12,
-              borderRadius: 14,
+              padding: 16,
+              borderRadius: 16,
               background: "white",
-              border: "1px solid rgba(17,24,39,0.18)",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+              border: "2px solid rgba(17,24,39,0.2)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
               textAlign: "center",
             }}
           >
-            <div style={{ fontSize: 16, fontWeight: 900 }}>
+            <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}>
               {winner === "draw"
                 ? "引き分け！"
                 : winner === "white"
                 ? "白の勝ち！"
                 : "黒の勝ち！"}
             </div>
-            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
+
+            <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 10 }}>
               リセットで再戦できます
             </div>
+
+            <button
+              onClick={resetGame}
+              style={{
+                height: 44,
+                padding: "0 16px",
+                borderRadius: 12,
+                border: "1px solid rgba(17,24,39,0.18)",
+                background: "white",
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              リセット
+            </button>
           </div>
         )}
+
 
 
         <div style={{ marginTop: 8, marginBottom: 12, fontSize: 14, opacity: 0.85 }}>
@@ -526,7 +575,11 @@ useEffect(() => {
                         fontSize: 18,
                         fontWeight: 900,
                         cursor: "pointer",
+                        transition: "transform 0.06s ease", // ★ 追加
                       }}
+                      onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")} // ★ 追加
+                      onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}      // ★ 追加
+                      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}   // ★ 追加（はみ出し防止）
                     >
                       ↺
                     </button>
@@ -554,7 +607,11 @@ useEffect(() => {
                         fontSize: 18,
                         fontWeight: 900,
                         cursor: "pointer",
+                        transition: "transform 0.06s ease", // ★ 追加
                       }}
+                      onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")} // ★ 追加
+                      onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}      // ★ 追加
+                      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}   // ★ 追加（はみ出し防止）
                     >
                       ↻
                     </button>
@@ -569,6 +626,31 @@ useEffect(() => {
         <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7, lineHeight: 1.5 }}>
           いまは「仮置き」まで完成。次のステップで「回転↺↻」を実装してターン確定にします。
         </div>
+      </div>
+      {/* 下部操作ラッパー（★ここに書く） */}
+      <div
+        style={{
+          position: "sticky",      // ★ 6) はここ
+          bottom: 0,               // ★ 画面下に吸着
+          zIndex: 10,
+          background: "rgba(249,250,251,0.92)",
+          backdropFilter: "blur(8px)",
+          padding: "10px 12px 12px",
+          borderTop: "1px solid rgba(17,24,39,0.12)",
+        }}
+      >
+        {/* キャンセル / 次へ */}
+        <div style={{ maxWidth: 520, margin: "0 auto", display: "flex", gap: 10 }}>
+          <button>キャンセル</button>
+          <button>次へ（回転）</button>
+        </div>
+
+        {/* 回転UI */}
+        {phase === "rotate" && (
+          <div style={{ maxWidth: 520, margin: "10px auto 0" }}>
+            {/* ↺ / ↻ ボタン群 */}
+          </div>
+        )}
       </div>
     </div>
   );
