@@ -354,13 +354,128 @@ useEffect(() => {
 
   if (screen === "home") {
     return (
-      <div style={{ padding: 16 }}>
-        <h1>Pentago</h1>
-        <button onClick={startLocal}>友達と対戦（同じ端末）</button>
-        <button onClick={() => setScreen("aiSetup")}>AIと対戦</button>
+      <div
+        style={{
+          minHeight: "100vh",
+          padding: 16,
+          background:
+            "radial-gradient(900px 500px at 20% 10%, rgba(99,102,241,0.25), transparent 60%)," +
+            "radial-gradient(800px 450px at 80% 20%, rgba(16,185,129,0.18), transparent 55%)," +
+            "linear-gradient(180deg, rgba(249,250,251,1), rgba(243,244,246,1))",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 560 }}>
+          {/* ヒーローカード */}
+          <div
+            style={{
+              background: "rgba(255,255,255,0.86)",
+              border: "1px solid rgba(17,24,39,0.12)",
+              borderRadius: 24,
+              padding: 20,
+              boxShadow: "0 18px 50px rgba(0,0,0,0.10)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            {/* タイトル */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 16,
+                  background:
+                    "linear-gradient(135deg, rgba(99,102,241,1), rgba(16,185,129,1))",
+                  boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+                }}
+              />
+              <div>
+                <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: 0.2 }}>
+                  Pentago
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.7, marginTop: 2 }}>
+                  Place • Rotate • Connect 5
+                </div>
+              </div>
+            </div>
+
+            {/* ちょい説明 */}
+            <div style={{ marginTop: 14, fontSize: 14, lineHeight: 1.6, opacity: 0.9 }}>
+              置いて、回して、5つ揃えろ。<br />
+              同じ端末で友達とも、AIとも対戦できます。
+            </div>
+
+            {/* ボタン */}
+            <div style={{ marginTop: 18, display: "grid", gap: 10 }}>
+              <button
+                onClick={startLocal}
+                style={{
+                  appearance: "none",
+                  border: "1px solid rgba(17,24,39,0.14)",
+                  borderRadius: 16,
+                  height: 52,
+                  padding: "0 14px",
+                  fontSize: 16,
+                  fontWeight: 950,
+                  background: "white",
+                  cursor: "pointer",
+                  boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
+                  transition: "transform 0.06s ease",
+                }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.99)")}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              >
+                友達と対戦（同じ端末）
+              </button>
+
+              <button
+                onClick={() => setScreen("aiSetup")}
+                style={{
+                  appearance: "none",
+                  border: "1px solid rgba(17,24,39,0.14)",
+                  borderRadius: 16,
+                  height: 52,
+                  padding: "0 14px",
+                  fontSize: 16,
+                  fontWeight: 950,
+                  background:
+                    "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(16,185,129,0.10))",
+                  cursor: "pointer",
+                  boxShadow: "0 10px 24px rgba(0,0,0,0.08)",
+                  transition: "transform 0.06s ease",
+                }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.99)")}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              >
+                AIと対戦
+              </button>
+            </div>
+
+            {/* フッター小物 */}
+            <div
+              style={{
+                marginTop: 14,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 12,
+                opacity: 0.65,
+              }}
+            >
+              <div>v0.1</div>
+              <div>Made for mobile</div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
+
 
   if (screen === "aiSetup") {
     return (
