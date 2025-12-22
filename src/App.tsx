@@ -370,7 +370,15 @@ useEffect(() => {
           paddingTop: 48,
         }}
       >
-        <div style={{ width: "100%", maxWidth: 640, margin: "0 auto" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "100%",   // ★ ここ
+            padding: 20,        // ★ 内側に余白を持たせる
+            boxSizing: "border-box",
+          }}
+        >
+
           {/* ヒーローカード */}
           <div
             style={{
