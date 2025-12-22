@@ -397,9 +397,6 @@ useEffect(() => {
                 <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: 0.2 }}>
                   Pentago
                 </div>
-                <div style={{ fontSize: 13, opacity: 0.7, marginTop: 2 }}>
-                  置いて、回して、5つ揃えろ。
-                </div>
               </div>
             </div>
 
