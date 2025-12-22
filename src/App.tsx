@@ -364,8 +364,9 @@ useEffect(() => {
             "linear-gradient(180deg, rgba(249,250,251,1), rgba(243,244,246,1))",
           boxSizing: "border-box",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: "flex-start",
+          justifyContent: "flex-start",
+          paddingTop: 48,
         }}
       >
         <div style={{ width: "100%", maxWidth: 560 }}>
@@ -397,7 +398,7 @@ useEffect(() => {
                   Pentago
                 </div>
                 <div style={{ fontSize: 13, opacity: 0.7, marginTop: 2 }}>
-                  Place • Rotate • Connect 5
+                  置いて、回して、5つ揃えろ。
                 </div>
               </div>
             </div>
