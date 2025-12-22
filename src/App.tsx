@@ -1,6 +1,6 @@
 // ① import
-import { useMemo, useState } from "react";
-import type { CellValue, Phase, Player, Pos } from "./types";
+import { useEffect, useMemo, useState } from "react";
+import type { CellValue, Phase, Player, Pos, Screen, GameMode } from "./types";
 import Board from "./Board";
 
 // ② ユーティリティ関数（← ここに回転関数を書く）
@@ -119,6 +119,80 @@ function checkWinner(board: CellValue[][]): Player | "draw" | null {
   return null;
 }
 
+function applyMove(
+  board: CellValue[][],
+  player: Player,
+  pos: Pos,
+  quadrant: number,
+  dir: "cw" | "ccw"
+): { board: CellValue[][]; winner: Player | "draw" | null } {
+  const placed = board.map(row => row.slice());
+  placed[pos.y][pos.x] = player;
+
+  const rotated = rotateQuadrant(placed, quadrant, dir);
+  const w = checkWinner(rotated);
+
+  return { board: rotated, winner: w };
+}
+
+type Move = { pos: Pos; quadrant: number; dir: "cw" | "ccw" };
+
+function generateMoves(board: CellValue[][]): Move[] {
+  const moves: Move[] = [];
+  for (let y = 0; y < 6; y++) {
+    for (let x = 0; x < 6; x++) {
+      if (board[y][x] !== null) continue;
+      for (let q = 0; q < 4; q++) {
+        moves.push({ pos: { x, y }, quadrant: q, dir: "cw" });
+        moves.push({ pos: { x, y }, quadrant: q, dir: "ccw" });
+      }
+    }
+  }
+  return moves;
+}
+
+function chooseAiMove(board: CellValue[][], ai: Player): Move {
+  const opp: Player = ai === "white" ? "black" : "white";
+  const candidates = generateMoves(board);
+
+  // 1) 即勝ちがあればそれ
+  for (const m of candidates) {
+    const r = applyMove(board, ai, m.pos, m.quadrant, m.dir);
+    if (r.winner === ai) return m;
+  }
+
+  // 2) 相手の即勝ち手を「減らす」手を選ぶ（0にできるならそれ）
+  let best: Move = candidates[Math.floor(Math.random() * candidates.length)];
+  let bestScore = -Infinity;
+
+  for (const m of candidates) {
+    const afterAi = applyMove(board, ai, m.pos, m.quadrant, m.dir);
+
+    // この手で自分が勝ってたら上で拾われてるが念のため
+    if (afterAi.winner === ai) return m;
+
+    // 相手の「次の即勝ち数」を数える（少ないほど良い）
+    const oppMoves = generateMoves(afterAi.board);
+    let oppWinCount = 0;
+    for (const om of oppMoves) {
+      const afterOpp = applyMove(afterAi.board, opp, om.pos, om.quadrant, om.dir);
+      if (afterOpp.winner === opp) oppWinCount++;
+      // 早めに打ち切り（軽量化）
+      if (oppWinCount > 5) break;
+    }
+
+    // スコア：相手の即勝ちが少ないほど良い + ちょいランダム
+    const score = -oppWinCount + Math.random() * 0.01;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = m;
+    }
+  }
+
+  return best;
+}
+
 
 function confirmRotation(
   board: CellValue[][],
@@ -164,6 +238,11 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("place");
   const [pendingMove, setPendingMove] = useState<Pos | null>(null);
   const [winner, setWinner] = useState<Player | "draw" | null>(null);
+  const [screen, setScreen] = useState<Screen>("home");
+  const [mode, setMode] = useState<GameMode>("local");
+
+  // AI用：AI側の色（humanはその逆）
+  const [aiSide, setAiSide] = useState<Player | null>(null);
 
 
   const canCancel = pendingMove !== null && phase === "place";
@@ -173,6 +252,54 @@ export default function App() {
     const phaseText = phase === "place" ? "置く" : "回す";
     return `${turnText}の手番｜${phaseText}`;
   }, [turn, phase]);
+
+useEffect(() => {
+  if (mode !== "ai") return;
+  if (!aiSide) return;
+  if (winner) return;
+
+  // AIの手番で、かつ人間が操作していない状態の時だけ
+  if (turn !== aiSide) return;
+  if (phase !== "place") return;
+  if (pendingMove) return;
+
+  const t = window.setTimeout(() => {
+    const m = chooseAiMove(board, aiSide);
+    const r = applyMove(board, aiSide, m.pos, m.quadrant, m.dir);
+
+    setBoard(r.board);
+    setWinner(r.winner);
+    setPhase("place");
+    setPendingMove(null);
+
+    if (!r.winner) {
+      setTurn(aiSide === "white" ? "black" : "white");
+    }
+  }, 250); // “考えてる感”だけ
+
+  return () => window.clearTimeout(t);
+}, [mode, aiSide, winner, turn, phase, pendingMove, board]);
+
+
+
+
+  function startLocal() {
+    resetGame();
+    setMode("local");
+    setAiSide(null);
+    setScreen("game");
+  }
+
+  function startAI(humanSide: Player) {
+    resetGame();
+    setMode("ai");
+    setAiSide(humanSide === "white" ? "black" : "white");
+    setScreen("game");
+
+  // AIが先手の場合は、開始直後にAIが打つ
+  // resetGame() で turn は "white" なので、AI=white の時だけ動く
+  }
+
 
   function resetGame() {
     setBoard(createEmptyBoard());
@@ -203,8 +330,30 @@ export default function App() {
     setPhase("rotate");
   }
 
+  if (screen === "home") {
+    return (
+      <div style={{ padding: 16 }}>
+        <h1>Pentago</h1>
+        <button onClick={startLocal}>友達と対戦（同じ端末）</button>
+        <button onClick={() => setScreen("aiSetup")}>AIと対戦</button>
+      </div>
+    );
+  }
+
+  if (screen === "aiSetup") {
+    return (
+      <div style={{ padding: 16 }}>
+        <h2>AIと対戦：先手を選ぶ</h2>
+        <button onClick={() => startAI("white")}>先手（白）</button>
+        <button onClick={() => startAI("black")}>後手（黒）</button>
+        <button onClick={() => setScreen("home")}>戻る</button>
+      </div>
+    );
+  }
+
+  // screen === "game"
   return (
-    <div
+        <div
       style={{
         minHeight: "100vh",
         background: "linear-gradient(180deg, rgba(249,250,251,1), rgba(243,244,246,1))",
