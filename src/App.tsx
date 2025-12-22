@@ -357,7 +357,8 @@ useEffect(() => {
       <div
         style={{
           minHeight: "100vh",
-          padding: 16,
+          paddingLeft: "max(16px, env(safe-area-inset-left))",
+          paddingRight: "max(16px, env(safe-area-inset-right))",
           background:
             "radial-gradient(900px 500px at 20% 10%, rgba(99,102,241,0.25), transparent 60%)," +
             "radial-gradient(800px 450px at 80% 20%, rgba(16,185,129,0.18), transparent 55%)," +
@@ -369,7 +370,7 @@ useEffect(() => {
           paddingTop: 48,
         }}
       >
-        <div style={{ width: "100%", maxWidth: 560 }}>
+        <div style={{ width: "100%", maxWidth: 640, margin: "0 auto" }}>
           {/* ヒーローカード */}
           <div
             style={{
