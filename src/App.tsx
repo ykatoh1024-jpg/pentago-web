@@ -265,9 +265,9 @@ export default function App() {
     if (winner) return;
     if (isAiTurn) return;
     if (phase !== "place") return;
-
     if (board[pos.y][pos.x] !== null) return;
 
+    // 置き直しを自然に（pendingMoveがあっても別マスに移動できる）
     setPendingMove(pos);
   }
 
@@ -323,7 +323,7 @@ export default function App() {
     if (phase === "place") {
       return pendingMove ? `${who}：次へを押して回転へ` : `${who}の番：空マスをタップして仮置き`;
     }
-    return `${who}の番：象限を選んで ↺/↻ 回転して確定`;
+    return `${who}の番：盤面で象限をタップ → ↺/↻ 回転して確定`;
   }, [winner, turn, phase, mode, aiSide, pendingMove]);
 
   // AIの手番：自動で1手（置く＋回す）打つ
@@ -616,14 +616,10 @@ export default function App() {
         </div>
 
         {/* Status */}
-        <div style={{ fontSize: 13, opacity: 0.82, marginTop: 10, marginBottom: 10 }}>
-          {statusText}
-        </div>
+        <div style={{ fontSize: 13, opacity: 0.82, marginTop: 10, marginBottom: 10 }}>{statusText}</div>
 
         {/* AI log */}
-        {mode === "ai" && lastMoveText && (
-          <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 10 }}>{lastMoveText}</div>
-        )}
+        {mode === "ai" && lastMoveText && <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 10 }}>{lastMoveText}</div>}
 
         {/* Winner Banner */}
         {winner && (
@@ -661,7 +657,20 @@ export default function App() {
         )}
 
         {/* Board */}
-        <Board board={board} turn={turn} phase={phase} pendingMove={pendingMove} onTapCell={onTapCell} />
+        <Board
+          board={board}
+          turn={turn}
+          phase={phase}
+          pendingMove={pendingMove}
+          onTapCell={onTapCell}
+          selectedQuadrant={selectedQuadrant}
+          onSelectQuadrant={(q) => {
+            if (winner) return;
+            if (isAiTurn) return;
+            if (phase !== "rotate") return;
+            setSelectedQuadrant(q);
+          }}
+        />
       </div>
 
       {/* Bottom Controls (sticky) */}
@@ -721,31 +730,7 @@ export default function App() {
           {/* Rotate phase controls */}
           {phase === "rotate" && (
             <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontSize: 12, opacity: 0.75 }}>象限を選んで回転</div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { q: 0, label: "左上" },
-                  { q: 1, label: "右上" },
-                  { q: 2, label: "左下" },
-                  { q: 3, label: "右下" },
-                ].map((it) => (
-                  <button
-                    key={it.q}
-                    onClick={() => setSelectedQuadrant(it.q)}
-                    style={{
-                      height: 44,
-                      borderRadius: 14,
-                      border: "1px solid rgba(17,24,39,0.14)",
-                      background: selectedQuadrant === it.q ? "rgba(99,102,241,0.14)" : "white",
-                      fontWeight: 950,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {it.label}
-                  </button>
-                ))}
-              </div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>盤面の象限をタップして選択 → ↺/↻ で確定</div>
 
               <div style={{ display: "flex", gap: 10 }}>
                 <button
