@@ -337,6 +337,7 @@ export default function App() {
   }, [winner, turn, phase, mode, aiSide, pendingMove]);
 
   // AIの手番：自動で1手（置く＋回す）打つ
+  // AIの手番：置き→象限ハイライト→回転 を段階表示
   useEffect(() => {
     if (mode !== "ai") return;
     if (!aiSide) return;
@@ -345,26 +346,52 @@ export default function App() {
     if (phase !== "place") return;
     if (pendingMove) return;
 
-    const t = window.setTimeout(() => {
+    let t1: number | undefined;
+    let t2: number | undefined;
+    let t3: number | undefined;
+
+    t1 = window.setTimeout(() => {
       const m = chooseAiMove(board, aiSide);
-      const r = applyMove(board, aiSide, m.pos, m.quadrant, m.dir);
 
-      setBoard(r.board);
-      setWinner(r.winner);
-      setPhase("place");
-      setPendingMove(null);
+      // ① 仮置きを見せる
+      setPendingMove(m.pos);
+      setLastMoveText(`AI: (${m.pos.x + 1}, ${m.pos.y + 1}) に置く…`);
 
-      setLastMoveText(
-        `AI: (${m.pos.x + 1}, ${m.pos.y + 1}) に置いて、${["左上", "右上", "左下", "右下"][m.quadrant]}を${
-          m.dir === "cw" ? "↻" : "↺"
-        }`
-      );
+      // ② 象限を見せる
+      t2 = window.setTimeout(() => {
+        setSelectedQuadrant(m.quadrant);
+        setPhase("rotate");
+        setLastMoveText(
+          `AI: (${m.pos.x + 1}, ${m.pos.y + 1}) → ${["左上", "右上", "左下", "右下"][m.quadrant]} を回す…`
+        );
 
-      if (!r.winner) setTurn(aiSide === "white" ? "black" : "white");
-    }, 250);
+        // ③ 回転して確定
+        t3 = window.setTimeout(() => {
+          const r = applyMove(board, aiSide, m.pos, m.quadrant, m.dir);
 
-    return () => window.clearTimeout(t);
+          setBoard(r.board);
+          setWinner(r.winner);
+          setPendingMove(null);
+          setPhase("place");
+
+          setLastMoveText(
+            `AI: (${m.pos.x + 1}, ${m.pos.y + 1}) → ${["左上", "右上", "左下", "右下"][m.quadrant]} ${
+              m.dir === "cw" ? "↻" : "↺"
+            }`
+          );
+
+          if (!r.winner) setTurn(aiSide === "white" ? "black" : "white");
+        }, 450);
+      }, 650);
+    }, 300);
+
+    return () => {
+      if (t1) window.clearTimeout(t1);
+      if (t2) window.clearTimeout(t2);
+      if (t3) window.clearTimeout(t3);
+    };
   }, [mode, aiSide, winner, turn, phase, pendingMove, board]);
+
 
   /* ============ Screens ============ */
 
