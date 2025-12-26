@@ -93,7 +93,6 @@ export default function Board({
 
   // ===== 透明スワイプレイヤー（iPad Safari安定：native touch）=====
   const swipeLayerRef = useRef<HTMLDivElement | null>(null);
-  const [debugSwipe, setDebugSwipe] = useState<string>("");
 
   useEffect(() => {
     const el = swipeLayerRef.current;
@@ -160,13 +159,11 @@ export default function Board({
         const q = qx + qy;
 
         onSelectQuadrant?.(q);
-        setDebugSwipe(`tap q=${q}`);
         return;
       }
 
       // スワイプ小さすぎは無視
       if (Math.hypot(dx, dy) < SWIPE_MIN_PX) {
-        setDebugSwipe(`move small dx=${Math.round(dx)} dy=${Math.round(dy)}`);
         return;
       }
 
@@ -176,17 +173,13 @@ export default function Board({
 
       // crossの絶対値が小さい＝中心方向に擦ってる（回転感が弱い）ので無視
       if (Math.abs(cross) < 60) {
-        setDebugSwipe(`weak spin cross=${Math.round(cross)} (ignored)`);
         return;
       }
 
       // ここは画面座標（y下向き）なので符号が直感と逆になることがある。
       // まずはこれで “指の回し方向” が一致する方を採用：
       const dir: "cw" | "ccw" = cross < 0 ? "ccw" : "cw";
-
-      setDebugSwipe(
-        `dial dx=${Math.round(dx)} dy=${Math.round(dy)} cross=${Math.round(cross)} dir=${dir} ✅`
-      );
+      
       onSwipeRotate?.(dir);
     };
 
@@ -401,11 +394,6 @@ export default function Board({
         {isRotate && (
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.92, color: "rgba(255,255,255,0.88)" }}>
             象限：{["左上", "右上", "左下", "右下"][selectedQuadrant]}（タップで選択）／ 左右スワイプで回転（左↺・右↻）
-          </div>
-        )}
-        {isRotate && (
-          <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.9)" }}>
-            {debugSwipe || "swipe: (no data yet)"}
           </div>
         )}
       </div>
