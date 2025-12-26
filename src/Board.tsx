@@ -182,7 +182,7 @@ export default function Board({
 
       // ここは画面座標（y下向き）なので符号が直感と逆になることがある。
       // まずはこれで “指の回し方向” が一致する方を採用：
-      const dir: "cw" | "ccw" = cross < 0 ? "cw" : "ccw";
+      const dir: "cw" | "ccw" = cross < 0 ? "ccw" : "cw";
 
       setDebugSwipe(
         `dial dx=${Math.round(dx)} dy=${Math.round(dy)} cross=${Math.round(cross)} dir=${dir} ✅`
