@@ -56,12 +56,27 @@ export default function Board({
     return () => ro.disconnect();
   }, []);
 
+  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+
   // ボードの描画幅（iPadでは自然に大きく）
   const boardSize = useMemo(() => {
-    // 画面に対してできるだけ大きく。ただしデカすぎ防止
-    // iPad横でも気持ちよく：最大 720px くらいまで許可
-    return clamp(wrapW, 280, 820);
-  }, [wrapW]);
+  // iPadはほぼ画面幅いっぱいまで使う（左右に余白を少し残す）
+  // SafariのUIや安全マージンを見て少し控えめに
+  const side = vw >= 768 ? 32 : 24; // iPad: 32px, phone:24px
+  const usable = vw - side * 2;
+
+  // 盤面は正方形。iPad横でも暴れない上限を持たせる
+  const cap = vw >= 768 ? 980 : 720;
+
+  return clamp(usable, 280, cap);
+}, [vw]);
+
 
   // ギャップは少しだけスケール（iPadで気持ちよい）
   const GAP = useMemo(() => {
