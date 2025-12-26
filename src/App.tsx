@@ -235,19 +235,10 @@ export default function App() {
   const [selectedQuadrant, setSelectedQuadrant] = useState<number>(0);
   const [lastMoveText, setLastMoveText] = useState<string>("");
 
+  // デバッグ（必要なら表示）
+  const [rotateBlockReason, setRotateBlockReason] = useState<string>("");
+
   const isAiTurn = mode === "ai" && aiSide && turn === aiSide && !winner;
-
-  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 390));
-  useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const isIPadLike = vw >= 768 && vw <= 1366; // iPad縦横をざっくりカバー
-  const pageMax = isIPadLike ? 920 : 560;    // ゲーム画面の横幅
-  const cardMax = isIPadLike ? 720 : 520;    // ホーム/AI設定カードの横幅
-
 
   function resetGame() {
     setBoard(createEmptyBoard());
@@ -257,6 +248,7 @@ export default function App() {
     setWinner(null);
     setSelectedQuadrant(0);
     setLastMoveText("");
+    setRotateBlockReason("");
   }
 
   function startLocal() {
@@ -279,7 +271,6 @@ export default function App() {
     if (phase !== "place") return;
     if (board[pos.y][pos.x] !== null) return;
 
-    // 置き直しを自然に（pendingMoveがあっても別マスに移動できる）
     setPendingMove(pos);
   }
 
@@ -290,6 +281,7 @@ export default function App() {
     if (!pendingMove) return;
 
     setPhase("rotate");
+    setRotateBlockReason("");
   }
 
   function cancelPending() {
@@ -303,11 +295,19 @@ export default function App() {
     setPendingMove(null);
   }
 
+  // ✅ スワイプ回転（pendingMove が null でも弾かない版）
+  // ※ ただし、回転フェーズに入るための pendingMove は proceedToRotatePhase が担保
   function confirmRotation(dir: "cw" | "ccw") {
-    if (winner) return;
-    if (isAiTurn) return;
-    if (phase !== "rotate") return;
-    if (!pendingMove) return;
+    if (winner) return setRotateBlockReason("blocked: winner exists");
+    if (isAiTurn) return setRotateBlockReason("blocked: AI turn");
+    if (phase !== "rotate") return setRotateBlockReason(`blocked: phase=${phase}`);
+
+    // ここから実行
+    setRotateBlockReason(`OK: rotate ${dir}`);
+
+    // まず「置き」を board に反映してから回転
+    // pendingMove がある前提（rotateに入れているため）
+    if (!pendingMove) return setRotateBlockReason("blocked: pendingMove is null (unexpected)");
 
     const placed = cloneBoard(board);
     placed[pendingMove.y][pendingMove.x] = turn;
@@ -319,9 +319,7 @@ export default function App() {
     setPhase("place");
     setWinner(w);
 
-    if (!w) {
-      setTurn(turn === "white" ? "black" : "white");
-    }
+    if (!w) setTurn(turn === "white" ? "black" : "white");
   }
 
   const statusText = useMemo(() => {
@@ -335,7 +333,7 @@ export default function App() {
     if (phase === "place") {
       return pendingMove ? `${who}：次へを押して回転へ` : `${who}の番：空マスをタップして仮置き`;
     }
-    return `${who}の番：盤面で象限をタップ → ↺/↻ 回転して確定`;
+    return `${who}の番：象限タップ→左右スワイプで回転して確定`;
   }, [winner, turn, phase, mode, aiSide, pendingMove]);
 
   // AIの手番：自動で1手（置く＋回す）打つ
@@ -376,8 +374,8 @@ export default function App() {
         style={{
           minHeight: "100vh",
           paddingTop: 44,
-          paddingLeft: "max(20px, env(safe-area-inset-left))",
-          paddingRight: "max(20px, env(safe-area-inset-right))",
+          paddingLeft: "max(16px, env(safe-area-inset-left))",
+          paddingRight: "max(16px, env(safe-area-inset-right))",
           paddingBottom: 16,
           background:
             "radial-gradient(900px 500px at 20% 10%, rgba(99,102,241,0.25), transparent 60%)," +
@@ -389,7 +387,7 @@ export default function App() {
           justifyContent: "center",
         }}
       >
-        <div style={{ width: "100%", maxWidth: cardMax, margin: "0 auto" }}>
+        <div style={{ width: "100%", maxWidth: "100%" }}>
           <div
             style={{
               background: "rgba(255,255,255,0.88)",
@@ -483,7 +481,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* カード下の装飾ミニ盤面 */}
           <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
             <MiniBoardDecorationBelow />
           </div>
@@ -498,8 +495,8 @@ export default function App() {
         style={{
           minHeight: "100vh",
           paddingTop: 44,
-          paddingLeft: "max(20px, env(safe-area-inset-left))",
-          paddingRight: "max(20px, env(safe-area-inset-right))",
+          paddingLeft: "max(16px, env(safe-area-inset-left))",
+          paddingRight: "max(16px, env(safe-area-inset-right))",
           paddingBottom: 16,
           background:
             "radial-gradient(900px 500px at 20% 10%, rgba(99,102,241,0.20), transparent 60%)," +
@@ -510,7 +507,7 @@ export default function App() {
           justifyContent: "center",
         }}
       >
-        <div style={{ width: "100%", maxWidth: cardMax, margin: "0 auto" }}>
+        <div style={{ width: "100%", maxWidth: "100%" }}>
           <div
             style={{
               background: "rgba(255,255,255,0.88)",
@@ -577,14 +574,14 @@ export default function App() {
       style={{
         minHeight: "100vh",
         paddingTop: 18,
-        paddingLeft: "max(24px, env(safe-area-inset-left))",
-        paddingRight: "max(24px, env(safe-area-inset-right))",
+        paddingLeft: "max(12px, env(safe-area-inset-left))",
+        paddingRight: "max(12px, env(safe-area-inset-right))",
         paddingBottom: 0,
         background: "linear-gradient(180deg, rgba(249,250,251,1), rgba(243,244,246,1))",
         boxSizing: "border-box",
       }}
     >
-      <div style={{ width: "100%", maxWidth: pageMax, margin: "0 auto" }}>
+      <div style={{ maxWidth: 980, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
@@ -630,8 +627,14 @@ export default function App() {
         {/* Status */}
         <div style={{ fontSize: 13, opacity: 0.82, marginTop: 10, marginBottom: 10 }}>{statusText}</div>
 
+        {rotateBlockReason && (
+          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>{rotateBlockReason}</div>
+        )}
+
         {/* AI log */}
-        {mode === "ai" && lastMoveText && <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 10 }}>{lastMoveText}</div>}
+        {mode === "ai" && lastMoveText && (
+          <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 10 }}>{lastMoveText}</div>
+        )}
 
         {/* Winner Banner */}
         {winner && (
@@ -676,12 +679,8 @@ export default function App() {
           pendingMove={pendingMove}
           onTapCell={onTapCell}
           selectedQuadrant={selectedQuadrant}
-          onSelectQuadrant={(q) => {
-            if (winner) return;
-            if (isAiTurn) return;
-            if (phase !== "rotate") return;
-            setSelectedQuadrant(q);
-          }}
+          onSelectQuadrant={setSelectedQuadrant}
+          onSwipeRotate={(dir) => confirmRotation(dir)}
         />
       </div>
 
@@ -699,8 +698,7 @@ export default function App() {
           boxSizing: "border-box",
         }}
       >
-        <div style={{ width: "100%", maxWidth: pageMax, margin: "0 auto" }}>
-          {/* Place phase controls */}
+        <div style={{ maxWidth: 980, margin: "0 auto" }}>
           {phase === "place" && (
             <div style={{ display: "flex", gap: 10 }}>
               <button
@@ -739,52 +737,11 @@ export default function App() {
             </div>
           )}
 
-          {/* Rotate phase controls */}
           {phase === "rotate" && (
             <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontSize: 12, opacity: 0.75 }}>盤面の象限をタップして選択 → ↺/↻ で確定</div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>象限は盤面タップで選択／左右スワイプで回転</div>
 
               <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={() => confirmRotation("ccw")}
-                  style={{
-                    flex: 1,
-                    height: 46,
-                    borderRadius: 14,
-                    border: "1px solid rgba(17,24,39,0.14)",
-                    background: "white",
-                    fontWeight: 950,
-                    fontSize: 18,
-                    cursor: "pointer",
-                    transition: "transform 0.06s ease",
-                  }}
-                  onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-                  onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                >
-                  ↺
-                </button>
-
-                <button
-                  onClick={() => confirmRotation("cw")}
-                  style={{
-                    flex: 1,
-                    height: 46,
-                    borderRadius: 14,
-                    border: "1px solid rgba(17,24,39,0.14)",
-                    background: "white",
-                    fontWeight: 950,
-                    fontSize: 18,
-                    cursor: "pointer",
-                    transition: "transform 0.06s ease",
-                  }}
-                  onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-                  onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                >
-                  ↻
-                </button>
-
                 <button
                   onClick={cancelPending}
                   style={{
@@ -807,4 +764,3 @@ export default function App() {
     </div>
   );
 }
-
