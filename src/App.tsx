@@ -237,6 +237,18 @@ export default function App() {
 
   const isAiTurn = mode === "ai" && aiSide && turn === aiSide && !winner;
 
+  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 390));
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const isIPadLike = vw >= 768 && vw <= 1366; // iPad縦横をざっくりカバー
+  const pageMax = isIPadLike ? 920 : 560;    // ゲーム画面の横幅
+  const cardMax = isIPadLike ? 720 : 520;    // ホーム/AI設定カードの横幅
+
+
   function resetGame() {
     setBoard(createEmptyBoard());
     setTurn("white");
@@ -364,8 +376,8 @@ export default function App() {
         style={{
           minHeight: "100vh",
           paddingTop: 44,
-          paddingLeft: "max(16px, env(safe-area-inset-left))",
-          paddingRight: "max(16px, env(safe-area-inset-right))",
+          paddingLeft: "max(20px, env(safe-area-inset-left))",
+          paddingRight: "max(20px, env(safe-area-inset-right))",
           paddingBottom: 16,
           background:
             "radial-gradient(900px 500px at 20% 10%, rgba(99,102,241,0.25), transparent 60%)," +
@@ -377,7 +389,7 @@ export default function App() {
           justifyContent: "center",
         }}
       >
-        <div style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
+        <div style={{ width: "100%", maxWidth: cardMax, margin: "0 auto" }}>
           <div
             style={{
               background: "rgba(255,255,255,0.88)",
@@ -486,8 +498,8 @@ export default function App() {
         style={{
           minHeight: "100vh",
           paddingTop: 44,
-          paddingLeft: "max(16px, env(safe-area-inset-left))",
-          paddingRight: "max(16px, env(safe-area-inset-right))",
+          paddingLeft: "max(20px, env(safe-area-inset-left))",
+          paddingRight: "max(20px, env(safe-area-inset-right))",
           paddingBottom: 16,
           background:
             "radial-gradient(900px 500px at 20% 10%, rgba(99,102,241,0.20), transparent 60%)," +
@@ -498,7 +510,7 @@ export default function App() {
           justifyContent: "center",
         }}
       >
-        <div style={{ width: "100%", maxWidth: "100%" }}>
+        <div style={{ width: "100%", maxWidth: cardMax, margin: "0 auto" }}>
           <div
             style={{
               background: "rgba(255,255,255,0.88)",
@@ -565,14 +577,14 @@ export default function App() {
       style={{
         minHeight: "100vh",
         paddingTop: 18,
-        paddingLeft: "max(16px, env(safe-area-inset-left))",
-        paddingRight: "max(16px, env(safe-area-inset-right))",
+        paddingLeft: "max(24px, env(safe-area-inset-left))",
+        paddingRight: "max(24px, env(safe-area-inset-right))",
         paddingBottom: 0,
         background: "linear-gradient(180deg, rgba(249,250,251,1), rgba(243,244,246,1))",
         boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: 860, margin: "0 auto" }}>
+      <div style={{ width: "100%", maxWidth: pageMax, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
@@ -687,7 +699,7 @@ export default function App() {
           boxSizing: "border-box",
         }}
       >
-        <div style={{ width: "100%", maxWidth: "min(920px, 100%)", margin: "0 auto" }}>
+        <div style={{ width: "100%", maxWidth: pageMax, margin: "0 auto" }}>
           {/* Place phase controls */}
           {phase === "place" && (
             <div style={{ display: "flex", gap: 10 }}>
@@ -795,3 +807,4 @@ export default function App() {
     </div>
   );
 }
+
