@@ -350,27 +350,32 @@ export default function App() {
     let t2: number | undefined;
     let t3: number | undefined;
 
-    t1 = window.setTimeout(() => {
-      const m = chooseAiMove(board, aiSide);
+    // この手番で使うAI手を固定（途中でstateが変わってもブレない）
+    const m = chooseAiMove(board, aiSide);
 
-      // ① 仮置きを見せる
+    t1 = window.setTimeout(() => {
+      // ① 仮置きを見せる（pendingMoveで表示）
       setPendingMove(m.pos);
       setLastMoveText(`AI: (${m.pos.x + 1}, ${m.pos.y + 1}) に置く…`);
 
-      // ② 象限を見せる
       t2 = window.setTimeout(() => {
+        // ② 象限を見せる（ハイライト）
         setSelectedQuadrant(m.quadrant);
         setPhase("rotate");
         setLastMoveText(
-          `AI: (${m.pos.x + 1}, ${m.pos.y + 1}) → ${["左上", "右上", "左下", "右下"][m.quadrant]} を回す…`
+          `AI: ${["左上", "右上", "左下", "右下"][m.quadrant]} を${m.dir === "cw" ? "↻" : "↺"}…`
         );
 
-        // ③ 回転して確定
         t3 = window.setTimeout(() => {
-          const r = applyMove(board, aiSide, m.pos, m.quadrant, m.dir);
+          // ③ ここで確実に確定（pendingMoveがある前提）
+          const placed = cloneBoard(board);
+          placed[m.pos.y][m.pos.x] = aiSide;
 
-          setBoard(r.board);
-          setWinner(r.winner);
+          const rotated = rotateQuadrant(placed, m.quadrant, m.dir);
+          const w = checkWinner(rotated);
+
+          setBoard(rotated);
+          setWinner(w);
           setPendingMove(null);
           setPhase("place");
 
@@ -380,7 +385,7 @@ export default function App() {
             }`
           );
 
-          if (!r.winner) setTurn(aiSide === "white" ? "black" : "white");
+          if (!w) setTurn(aiSide === "white" ? "black" : "white");
         }, 450);
       }, 650);
     }, 300);
@@ -391,6 +396,7 @@ export default function App() {
       if (t3) window.clearTimeout(t3);
     };
   }, [mode, aiSide, winner, turn, phase, pendingMove, board]);
+
 
 
   /* ============ Screens ============ */
