@@ -18,10 +18,6 @@ function quadrantFromCell(x: number, y: number): number {
   return ox + oy; // 0:左上, 1:右上, 2:左下, 3:右下
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
 export default function Board({
   board,
   turn,
