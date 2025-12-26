@@ -9,9 +9,8 @@ type Props = {
   onTapCell: (pos: Pos) => void;
 
   selectedQuadrant: number;
-  onSelectQuadrant: (q: number) => void;
-
-  onSwipeRotate: (dir: "cw" | "ccw") => void;
+  onSelectQuadrant?: (q: number) => void;
+  onSwipeRotate?: (dir: "cw" | "ccw") => void;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -132,7 +131,7 @@ export default function Board({
         const qy = ry < rect.height / 2 ? 0 : 2;
         const q = qx + qy; // 0,1,2,3
 
-        onSelectQuadrant(q);
+        onSelectQuadrant?.(q);
         setDebugSwipe(`tap q=${q}`);
         return;
       }
@@ -149,7 +148,7 @@ export default function Board({
 
       const dir: "cw" | "ccw" = dx > 0 ? "cw" : "ccw";
       setDebugSwipe(`swipe dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dir} ✅`);
-      onSwipeRotate(dir);
+      onSwipeRotate?.(dir);
     };
 
     // preventDefault するので passive:false 必須
