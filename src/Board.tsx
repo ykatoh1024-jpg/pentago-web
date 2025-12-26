@@ -37,6 +37,8 @@ export default function Board({
   const isRotate = phase === "rotate";
   const swipeZoneRef = useRef<HTMLDivElement | null>(null);
   const [debugSwipe, setDebugSwipe] = useState<string>("");
+  const swipeLayerRef = useRef<HTMLDivElement | null>(null);
+
 
 
   // ===== 見た目（深紅） =====
@@ -63,39 +65,44 @@ export default function Board({
   }, []);
 
   useEffect(() => {
-    const el = swipeZoneRef.current;
+    const el = swipeLayerRef.current;
     if (!el) return;
-
-    // rotate中だけ有効にする
-    if (!isRotate) return;
 
     let sx = 0;
     let sy = 0;
     let tracking = false;
 
     const SWIPE_MIN_PX = 28;
-    const SWIPE_MAX_ANGLE = 0.6; // dy が大きすぎるのは無視
+    const TAP_MAX_PX = 10;
+    const SWIPE_MAX_ANGLE = 0.6;
 
     const onStart = (e: TouchEvent) => {
+      if (!isRotate) return;
       if (e.touches.length !== 1) return;
+
       tracking = true;
       sx = e.touches[0].clientX;
       sy = e.touches[0].clientY;
+
+      // iOSでスクロールに奪われないように
+      e.preventDefault();
     };
 
     const onMove = (e: TouchEvent) => {
+      if (!isRotate) return;
       if (!tracking) return;
 
       const dx = e.touches[0].clientX - sx;
       const dy = e.touches[0].clientY - sy;
 
-      // 横スワイプっぽい時だけスクロールを止める（ここが肝）
+      // 横っぽい動きならスクロール止める
       if (Math.abs(dx) > 10 && Math.abs(dy) <= Math.abs(dx) * SWIPE_MAX_ANGLE) {
         e.preventDefault();
       }
     };
 
     const onEnd = (e: TouchEvent) => {
+      if (!isRotate) return;
       if (!tracking) return;
       tracking = false;
 
@@ -103,17 +110,31 @@ export default function Board({
       const dx = t.clientX - sx;
       const dy = t.clientY - sy;
 
+      // ほぼ動いてない → タップ扱い（象限選択）
+      if (Math.abs(dx) <= TAP_MAX_PX && Math.abs(dy) <= TAP_MAX_PX) {
+        const rect = el.getBoundingClientRect();
+        const rx = t.clientX - rect.left; // 0..width
+        const ry = t.clientY - rect.top;  // 0..height
+        const qx = rx < rect.width / 2 ? 0 : 1;
+        const qy = ry < rect.height / 2 ? 0 : 2;
+        const q = qx + qy; // 0,1,2,3
+        onSelectQuadrant?.(q);
+        return;
+      }
+
+      // スワイプ判定（横スワイプのみ）
       if (Math.abs(dx) < SWIPE_MIN_PX) return;
       if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
-      setDebugSwipe(`swipe dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dx > 0 ? "cw" : "ccw"}`);
+      setDebugSwipe(`dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dx > 0 ? "cw" : "ccw"}`);
       onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
       setDebugSwipe((s) => s + " ✅ fired");
     };
 
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false }); // preventDefault のために false が必須
-    el.addEventListener("touchend", onEnd, { passive: true });
-    el.addEventListener("touchcancel", onEnd, { passive: true });
+    // ★ここ重要：preventDefaultするので passive:false
+    el.addEventListener("touchstart", onStart, { passive: false });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: false });
+    el.addEventListener("touchcancel", onEnd, { passive: false });
 
     return () => {
       el.removeEventListener("touchstart", onStart);
@@ -121,7 +142,8 @@ export default function Board({
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [isRotate, onSwipeRotate]);
+  }, [isRotate, onSwipeRotate, onSelectQuadrant]);
+
 
 
   const boardSize = useMemo(() => {
@@ -169,6 +191,23 @@ export default function Board({
             WebkitUserSelect: "none",
           }}
         >
+
+          {/* ✅ 透明スワイプレイヤーは「子要素」として置く */}
+          {isRotate && (
+            <div
+              ref={swipeLayerRef}
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 50,
+                background: "transparent",
+                touchAction: "none",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+              }}
+            />
+          )}
+        </div>
 
           {/* 4分割線（縦） */}
           <div
@@ -231,10 +270,6 @@ export default function Board({
                     key={`${x}-${y}`}
                     // clickは維持（象限タップ/仮置き）
                     onClick={() => {
-                      if (isRotate) {
-                        onSelectQuadrant?.(q);
-                        return;
-                      }
                       onTapCell({ x, y });
                     }}
                     role="button"
@@ -303,7 +338,6 @@ export default function Board({
             {debugSwipe || "swipe: (no data yet)"}
           </div>
         )}
-      </div>
     </div>
   );
 }
