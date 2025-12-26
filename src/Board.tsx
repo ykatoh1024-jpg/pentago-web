@@ -88,7 +88,8 @@ export default function Board({
     let sy = 0;
     let tracking = false;
 
-    let startYInEl = 0;
+    let startRX = 0; // centerから見た開始点ベクトル
+    let startRY = 0;
 
     const SWIPE_MIN_PX = 26;
     const TAP_MAX_PX = 10;
@@ -97,14 +98,21 @@ export default function Board({
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       tracking = true;
-      sx = e.touches[0].clientX;
-      sy = e.touches[0].clientY;
+
+      const t = e.touches[0];
+      sx = t.clientX;
+      sy = t.clientY;
 
       const rect = el.getBoundingClientRect();
-      startYInEl = sy - rect.top;
-      
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      startRX = sx - cx;
+      startRY = sy - cy;
+
       e.preventDefault();
     };
+
 
     const onMove = (e: TouchEvent) => {
       if (!tracking) return;
@@ -120,14 +128,17 @@ export default function Board({
       tracking = false;
 
       const t = e.changedTouches[0];
-      const dx = t.clientX - sx;
-      const dy = t.clientY - sy;
+      const ex = t.clientX;
+      const ey = t.clientY;
+
+      const dx = ex - sx;
+      const dy = ey - sy;
 
       // タップ＝象限選択
       if (Math.abs(dx) <= TAP_MAX_PX && Math.abs(dy) <= TAP_MAX_PX) {
         const rect = el.getBoundingClientRect();
-        const rx = t.clientX - rect.left;
-        const ry = t.clientY - rect.top;
+        const rx = ex - rect.left;
+        const ry = ey - rect.top;
 
         const qx = rx < rect.width / 2 ? 0 : 1;
         const qy = ry < rect.height / 2 ? 0 : 2;
@@ -138,25 +149,32 @@ export default function Board({
         return;
       }
 
-      // 横スワイプ＝回転
-      if (Math.abs(dx) < SWIPE_MIN_PX) {
+      // スワイプ小さすぎは無視
+      if (Math.hypot(dx, dy) < SWIPE_MIN_PX) {
         setDebugSwipe(`move small dx=${Math.round(dx)} dy=${Math.round(dy)}`);
         return;
       }
-      if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) {
-        setDebugSwipe(`vertical dx=${Math.round(dx)} dy=${Math.round(dy)}`);
+
+      // ==== 本物のダイヤル式 ====
+      // 外積 z = r x d = rx*dy - ry*dx
+      const cross = startRX * dy - startRY * dx;
+
+      // crossの絶対値が小さい＝中心方向に擦ってる（回転感が弱い）ので無視
+      if (Math.abs(cross) < 60) {
+        setDebugSwipe(`weak spin cross=${Math.round(cross)} (ignored)`);
         return;
       }
 
-      let dir: "cw" | "ccw" = dx > 0 ? "cw" : "ccw";
-      setDebugSwipe(`swipe dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dir} ✅`);
+      // ここは画面座標（y下向き）なので符号が直感と逆になることがある。
+      // まずはこれで “指の回し方向” が一致する方を採用：
+      const dir: "cw" | "ccw" = cross < 0 ? "cw" : "ccw";
+
+      setDebugSwipe(
+        `dial dx=${Math.round(dx)} dy=${Math.round(dy)} cross=${Math.round(cross)} dir=${dir} ✅`
+      );
       onSwipeRotate?.(dir);
-      const rect = el.getBoundingClientRect();
-      const isBottom = startYInEl > rect.height / 2;
-      if (isBottom) {
-        dir = dir === "cw" ? "ccw" : "cw";
-      }
     };
+
 
     el.addEventListener("touchstart", onStart, { passive: false });
     el.addEventListener("touchmove", onMove, { passive: false });
