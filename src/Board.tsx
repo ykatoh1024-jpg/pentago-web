@@ -60,7 +60,7 @@ export default function Board({
   const boardSize = useMemo(() => {
     // 画面に対してできるだけ大きく。ただしデカすぎ防止
     // iPad横でも気持ちよく：最大 720px くらいまで許可
-    return clamp(wrapW, 280, 720);
+    return clamp(wrapW, 280, 820);
   }, [wrapW]);
 
   // ギャップは少しだけスケール（iPadで気持ちよい）

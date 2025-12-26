@@ -377,7 +377,7 @@ export default function App() {
           justifyContent: "center",
         }}
       >
-        <div style={{ width: "100%", maxWidth: "100%" }}>
+        <div style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
           <div
             style={{
               background: "rgba(255,255,255,0.88)",
@@ -565,14 +565,14 @@ export default function App() {
       style={{
         minHeight: "100vh",
         paddingTop: 18,
-        paddingLeft: "max(12px, env(safe-area-inset-left))",
-        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingLeft: "max(16px, env(safe-area-inset-left))",
+        paddingRight: "max(16px, env(safe-area-inset-right))",
         paddingBottom: 0,
         background: "linear-gradient(180deg, rgba(249,250,251,1), rgba(243,244,246,1))",
         boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+      <div style={{ maxWidth: 860, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
@@ -687,7 +687,7 @@ export default function App() {
           boxSizing: "border-box",
         }}
       >
-        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        <div style={{ width: "100%", maxWidth: "min(920px, 100%)", margin: "0 auto" }}>
           {/* Place phase controls */}
           {phase === "place" && (
             <div style={{ display: "flex", gap: 10 }}>
