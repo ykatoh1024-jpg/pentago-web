@@ -104,21 +104,21 @@ export default function Board({
             height: GRID_H,
             position: "relative",
 
-            // ★ここが重要：rotate中はスクロールに奪われないようにする
+            // rotate中はスクロールに奪われないように
             touchAction: isRotate ? "none" : "manipulation",
           }}
-          onPointerDown={(e) => {
+
+          // ✅ 子要素より先に拾う（ここが重要）
+          onPointerDownCapture={(e) => {
             if (!isRotate) return;
-            // 盤面内でのスワイプだけ取る
             swipeRef.current = { x: e.clientX, y: e.clientY, active: true };
-            // ポインタを捕まえる（外に出てもUP拾える）
             (e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId);
           }}
-          onPointerUp={(e) => {
+          onPointerUpCapture={(e) => {
             if (!isRotate) return;
             const s = swipeRef.current;
             swipeRef.current = null;
-            if (!s || !s.active) return;
+            if (!s?.active) return;
 
             const dx = e.clientX - s.x;
             const dy = e.clientY - s.y;
@@ -126,13 +126,35 @@ export default function Board({
             if (Math.abs(dx) < SWIPE_MIN_PX) return;
             if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
 
-            const dir: "cw" | "ccw" = dx > 0 ? "cw" : "ccw";
-            onSwipeRotate?.(dir);
+            onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
           }}
-          onPointerCancel={() => {
+          onPointerCancelCapture={() => {
             swipeRef.current = null;
           }}
+
+          // ✅ iOSで pointer が不安定な時の保険（touch）
+          onTouchStartCapture={(e) => {
+            if (!isRotate) return;
+            const t = e.touches[0];
+            swipeRef.current = { x: t.clientX, y: t.clientY, active: true };
+          }}
+          onTouchEndCapture={(e) => {
+            if (!isRotate) return;
+            const s = swipeRef.current;
+            swipeRef.current = null;
+            if (!s?.active) return;
+
+            const t = e.changedTouches[0];
+            const dx = t.clientX - s.x;
+            const dy = t.clientY - s.y;
+
+            if (Math.abs(dx) < SWIPE_MIN_PX) return;
+            if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
+
+            onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
+          }}
         >
+
           {/* 4分割線（縦） */}
           <div
             aria-hidden
