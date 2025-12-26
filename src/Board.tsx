@@ -9,16 +9,10 @@ type Props = {
   onTapCell: (pos: Pos) => void;
 
   selectedQuadrant: number;
-  onSelectQuadrant?: (q: number) => void;
+  onSelectQuadrant: (q: number) => void;
 
-  onSwipeRotate?: (dir: "cw" | "ccw") => void;
+  onSwipeRotate: (dir: "cw" | "ccw") => void;
 };
-
-function quadrantFromCell(x: number, y: number): number {
-  const ox = x < 3 ? 0 : 1;
-  const oy = y < 3 ? 0 : 2;
-  return ox + oy; // 0:左上, 1:右上, 2:左下, 3:右下
-}
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -35,20 +29,8 @@ export default function Board({
   onSwipeRotate,
 }: Props) {
   const isRotate = phase === "rotate";
-  const swipeZoneRef = useRef<HTMLDivElement | null>(null);
-  const [debugSwipe, setDebugSwipe] = useState<string>("");
-  const swipeLayerRef = useRef<HTMLDivElement | null>(null);
 
-
-
-  // ===== 見た目（深紅） =====
-  const BOARD_COLOR_TOP = "#8B0000";
-  const BOARD_COLOR_BOTTOM = "#5c0011";
-  const LINE_COLOR = "rgba(255,255,255,0.40)";
-  const HOLE_BG = "rgba(0,0,0,0.18)";
-  const HOLE_BORDER = "rgba(255,255,255,0.18)";
-
-  // ===== 画面幅基準で盤面を決める（iPadで大きく）=====
+  // ===== iPad最適化：画面幅(vw)基準で盤面サイズ決定 =====
   const [vw, setVw] = useState<number>(() =>
     typeof window !== "undefined" ? window.innerWidth : 1024
   );
@@ -63,88 +45,6 @@ export default function Board({
       window.removeEventListener("orientationchange", update);
     };
   }, []);
-
-  useEffect(() => {
-    const el = swipeLayerRef.current;
-    if (!el) return;
-
-    let sx = 0;
-    let sy = 0;
-    let tracking = false;
-
-    const SWIPE_MIN_PX = 28;
-    const TAP_MAX_PX = 10;
-    const SWIPE_MAX_ANGLE = 0.6;
-
-    const onStart = (e: TouchEvent) => {
-      if (!isRotate) return;
-      if (e.touches.length !== 1) return;
-
-      tracking = true;
-      sx = e.touches[0].clientX;
-      sy = e.touches[0].clientY;
-
-      // iOSでスクロールに奪われないように
-      e.preventDefault();
-    };
-
-    const onMove = (e: TouchEvent) => {
-      if (!isRotate) return;
-      if (!tracking) return;
-
-      const dx = e.touches[0].clientX - sx;
-      const dy = e.touches[0].clientY - sy;
-
-      // 横っぽい動きならスクロール止める
-      if (Math.abs(dx) > 10 && Math.abs(dy) <= Math.abs(dx) * SWIPE_MAX_ANGLE) {
-        e.preventDefault();
-      }
-    };
-
-    const onEnd = (e: TouchEvent) => {
-      if (!isRotate) return;
-      if (!tracking) return;
-      tracking = false;
-
-      const t = e.changedTouches[0];
-      const dx = t.clientX - sx;
-      const dy = t.clientY - sy;
-
-      // ほぼ動いてない → タップ扱い（象限選択）
-      if (Math.abs(dx) <= TAP_MAX_PX && Math.abs(dy) <= TAP_MAX_PX) {
-        const rect = el.getBoundingClientRect();
-        const rx = t.clientX - rect.left; // 0..width
-        const ry = t.clientY - rect.top;  // 0..height
-        const qx = rx < rect.width / 2 ? 0 : 1;
-        const qy = ry < rect.height / 2 ? 0 : 2;
-        const q = qx + qy; // 0,1,2,3
-        onSelectQuadrant?.(q);
-        return;
-      }
-
-      // スワイプ判定（横スワイプのみ）
-      if (Math.abs(dx) < SWIPE_MIN_PX) return;
-      if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
-      setDebugSwipe(`dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dx > 0 ? "cw" : "ccw"}`);
-      onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
-      setDebugSwipe((s) => s + " ✅ fired");
-    };
-
-    // ★ここ重要：preventDefaultするので passive:false
-    el.addEventListener("touchstart", onStart, { passive: false });
-    el.addEventListener("touchmove", onMove, { passive: false });
-    el.addEventListener("touchend", onEnd, { passive: false });
-    el.addEventListener("touchcancel", onEnd, { passive: false });
-
-    return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
-      el.removeEventListener("touchcancel", onEnd);
-    };
-  }, [isRotate, onSwipeRotate, onSelectQuadrant]);
-
-
 
   const boardSize = useMemo(() => {
     const isTablet = vw >= 768;
@@ -161,54 +61,141 @@ export default function Board({
     return Math.round(clamp(raw, 38, 86));
   }, [boardSize, GAP]);
 
+  // 実寸固定でズレ防止
   const GRID_W = CELL * 6 + GAP * 5;
   const GRID_H = GRID_W;
 
-  const MID_X = CELL * 3 + GAP * 2 + GAP / 2;
-  const MID_Y = MID_X;
+  // 4分割線：中央ギャップの中心
+  const MID = CELL * 3 + GAP * 2 + GAP / 2;
+
+  // ===== 見た目（深紅） =====
+  const BOARD_TOP = "#8B0000";
+  const BOARD_BTM = "#5c0011";
+  const LINE_COLOR = "rgba(255,255,255,0.40)";
+  const HOLE_BG = "rgba(0,0,0,0.18)";
+  const HOLE_BORDER = "rgba(255,255,255,0.18)";
+
+  // ===== 透明スワイプレイヤー（iPad Safari安定：native touch）=====
+  const swipeLayerRef = useRef<HTMLDivElement | null>(null);
+  const [debugSwipe, setDebugSwipe] = useState<string>("");
+
+  useEffect(() => {
+    const el = swipeLayerRef.current;
+    if (!el) return;
+
+    // rotate中だけ有効（それ以外はレイヤー自体が出ないが念のため）
+    if (!isRotate) return;
+
+    let sx = 0;
+    let sy = 0;
+    let tracking = false;
+
+    const SWIPE_MIN_PX = 26;
+    const TAP_MAX_PX = 10;
+    const SWIPE_MAX_ANGLE = 0.65; // 斜めすぎるのは無視
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      tracking = true;
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+      // ここで止めないとスクロールに奪われる
+      e.preventDefault();
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      const dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+
+      // 横っぽい動きだけスクロール停止
+      if (Math.abs(dx) > 10 && Math.abs(dy) <= Math.abs(dx) * SWIPE_MAX_ANGLE) {
+        e.preventDefault();
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+
+      // タップ扱い：象限選択
+      if (Math.abs(dx) <= TAP_MAX_PX && Math.abs(dy) <= TAP_MAX_PX) {
+        const rect = el.getBoundingClientRect();
+        const rx = t.clientX - rect.left;
+        const ry = t.clientY - rect.top;
+
+        const qx = rx < rect.width / 2 ? 0 : 1;
+        const qy = ry < rect.height / 2 ? 0 : 2;
+        const q = qx + qy; // 0,1,2,3
+
+        onSelectQuadrant(q);
+        setDebugSwipe(`tap q=${q}`);
+        return;
+      }
+
+      // スワイプ扱い：回転
+      if (Math.abs(dx) < SWIPE_MIN_PX) {
+        setDebugSwipe(`move small dx=${Math.round(dx)} dy=${Math.round(dy)}`);
+        return;
+      }
+      if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) {
+        setDebugSwipe(`vertical dx=${Math.round(dx)} dy=${Math.round(dy)}`);
+        return;
+      }
+
+      const dir: "cw" | "ccw" = dx > 0 ? "cw" : "ccw";
+      setDebugSwipe(`swipe dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dir} ✅`);
+      onSwipeRotate(dir);
+    };
+
+    // preventDefault するので passive:false 必須
+    el.addEventListener("touchstart", onStart, { passive: false });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: false });
+    el.addEventListener("touchcancel", onEnd, { passive: false });
+
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [isRotate, onSelectQuadrant, onSwipeRotate]);
+
+  // ===== セルクリック（placeのみ）。rotate中は透明レイヤーが取る =====
+  function onCellClick(x: number, y: number) {
+    if (isRotate) return; // rotate中は触れない（象限も回転もレイヤーで）
+    onTapCell({ x, y });
+  }
 
   return (
     <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+      {/* 深紅ボード背景 */}
       <div
         style={{
           display: "inline-block",
           borderRadius: 22,
           padding: 12,
           boxSizing: "border-box",
-          background: `linear-gradient(180deg, ${BOARD_COLOR_TOP}, ${BOARD_COLOR_BOTTOM})`,
+          background: `linear-gradient(180deg, ${BOARD_TOP}, ${BOARD_BTM})`,
           border: "1px solid rgba(255,255,255,0.10)",
           boxShadow: "0 18px 44px rgba(0,0,0,0.22)",
         }}
       >
+        {/* 盤面本体 */}
         <div
-          ref={swipeZoneRef}
           style={{
             width: GRID_W,
             height: GRID_H,
             position: "relative",
-            // iOSで選択やスクロールの誤爆を減らす
             userSelect: "none",
             WebkitUserSelect: "none",
           }}
         >
-
-          {/* ✅ 透明スワイプレイヤーは「子要素」として置く */}
-          {isRotate && (
-            <div
-              ref={swipeLayerRef}
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 50,
-                background: "transparent",
-                touchAction: "none",
-                userSelect: "none",
-                WebkitUserSelect: "none",
-              }}
-            />
-          )}
-        </div>
-
           {/* 4分割線（縦） */}
           <div
             aria-hidden
@@ -216,7 +203,7 @@ export default function Board({
               position: "absolute",
               top: -2,
               bottom: -2,
-              left: MID_X,
+              left: MID,
               width: 3,
               transform: "translateX(-1.5px)",
               background: LINE_COLOR,
@@ -232,7 +219,7 @@ export default function Board({
               position: "absolute",
               left: -2,
               right: -2,
-              top: MID_Y,
+              top: MID,
               height: 3,
               transform: "translateY(-1.5px)",
               background: LINE_COLOR,
@@ -242,7 +229,7 @@ export default function Board({
             }}
           />
 
-          {/* セル */}
+          {/* セルグリッド */}
           <div
             style={{
               position: "absolute",
@@ -251,14 +238,10 @@ export default function Board({
               gridTemplateColumns: `repeat(6, ${CELL}px)`,
               gridTemplateRows: `repeat(6, ${CELL}px)`,
               gap: GAP,
-              userSelect: "none",
             }}
           >
             {board.map((row, y) =>
               row.map((v, x) => {
-                const q = quadrantFromCell(x, y);
-                const isSelectedQ = isRotate && q === selectedQuadrant;
-
                 const isPending = pendingMove && pendingMove.x === x && pendingMove.y === y;
                 const renderVal: CellValue = isPending ? turn : v;
 
@@ -268,28 +251,21 @@ export default function Board({
                 return (
                   <div
                     key={`${x}-${y}`}
-                    // clickは維持（象限タップ/仮置き）
-                    onClick={() => {
-                      onTapCell({ x, y });
-                    }}
                     role="button"
                     aria-label={`cell-${x}-${y}`}
+                    onClick={() => onCellClick(x, y)}
                     style={{
                       width: CELL,
                       height: CELL,
                       borderRadius: 999,
-                      background: isSelectedQ ? "rgba(255,255,255,0.12)" : HOLE_BG,
-                      border: isSelectedQ
-                        ? "2px solid rgba(255,255,255,0.42)"
-                        : `1px solid ${HOLE_BORDER}`,
+                      background: HOLE_BG,
+                      border: `1px solid ${HOLE_BORDER}`,
                       boxSizing: "border-box",
                       position: "relative",
-                      cursor: "pointer",
-                      outline: isSelectedQ ? "2px solid rgba(0,0,0,0.25)" : "none",
-                      outlineOffset: 2,
-                      transition: "background 0.12s ease, border 0.12s ease",
+                      cursor: isRotate ? "default" : "pointer",
                     }}
                   >
+                    {/* 石（または仮置き） */}
                     {renderVal && (
                       <div
                         aria-hidden
@@ -307,6 +283,7 @@ export default function Board({
                       />
                     )}
 
+                    {/* 仮置きリング */}
                     {isPending && (
                       <div
                         aria-hidden
@@ -325,12 +302,28 @@ export default function Board({
               })
             )}
           </div>
+
+          {/* ✅ rotate中だけ：透明スワイプレイヤー（ここが最重要） */}
+          {isRotate && (
+            <div
+              ref={swipeLayerRef}
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 50,
+                background: "transparent",
+                touchAction: "none",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+              }}
+            />
+          )}
         </div>
 
+        {/* rotate時のガイド＋デバッグ */}
         {isRotate && (
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.92, color: "rgba(255,255,255,0.88)" }}>
-            象限：{["左上", "右上", "左下", "右下"][selectedQuadrant]}（盤面タップで選択）／
-            左右スワイプで回転（左↺・右↻）
+            象限：{["左上", "右上", "左下", "右下"][selectedQuadrant]}（タップで選択）／ 左右スワイプで回転（左↺・右↻）
           </div>
         )}
         {isRotate && (
@@ -338,6 +331,7 @@ export default function Board({
             {debugSwipe || "swipe: (no data yet)"}
           </div>
         )}
+      </div>
     </div>
   );
 }
