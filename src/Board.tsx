@@ -35,6 +35,7 @@ export default function Board({
   onSwipeRotate,
 }: Props) {
   const isRotate = phase === "rotate";
+  const swipeZoneRef = useRef<HTMLDivElement | null>(null);
 
   // ===== 見た目（深紅） =====
   const BOARD_COLOR_TOP = "#8B0000";
@@ -59,6 +60,67 @@ export default function Board({
     };
   }, []);
 
+  useEffect(() => {
+    const el = swipeZoneRef.current;
+    if (!el) return;
+
+    // rotate中だけ有効にする
+    if (!isRotate) return;
+
+    let sx = 0;
+    let sy = 0;
+    let tracking = false;
+
+    const SWIPE_MIN_PX = 28;
+    const SWIPE_MAX_ANGLE = 0.6; // dy が大きすぎるのは無視
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      tracking = true;
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+
+      const dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+
+      // 横スワイプっぽい時だけスクロールを止める（ここが肝）
+      if (Math.abs(dx) > 10 && Math.abs(dy) <= Math.abs(dx) * SWIPE_MAX_ANGLE) {
+        e.preventDefault();
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+
+      if (Math.abs(dx) < SWIPE_MIN_PX) return;
+      if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
+
+      onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false }); // preventDefault のために false が必須
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [isRotate, onSwipeRotate]);
+
+
   const boardSize = useMemo(() => {
     const isTablet = vw >= 768;
     const sideMargin = isTablet ? 32 : 24;
@@ -80,11 +142,6 @@ export default function Board({
   const MID_X = CELL * 3 + GAP * 2 + GAP / 2;
   const MID_Y = MID_X;
 
-  // ===== Pointerでスワイプ検出（iPadで安定）=====
-  const swipeRef = useRef<{ x: number; y: number; active: boolean } | null>(null);
-  const SWIPE_MIN_PX = 28;
-  const SWIPE_MAX_ANGLE = 0.6; // dyが大きい(縦スクロール系)は無視
-
   return (
     <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
       <div
@@ -99,59 +156,14 @@ export default function Board({
         }}
       >
         <div
+          ref={swipeZoneRef}
           style={{
             width: GRID_W,
             height: GRID_H,
             position: "relative",
-
-            // rotate中はスクロールに奪われないように
-            touchAction: isRotate ? "none" : "manipulation",
-          }}
-
-          // ✅ 子要素より先に拾う（ここが重要）
-          onPointerDownCapture={(e) => {
-            if (!isRotate) return;
-            swipeRef.current = { x: e.clientX, y: e.clientY, active: true };
-            (e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId);
-          }}
-          onPointerUpCapture={(e) => {
-            if (!isRotate) return;
-            const s = swipeRef.current;
-            swipeRef.current = null;
-            if (!s?.active) return;
-
-            const dx = e.clientX - s.x;
-            const dy = e.clientY - s.y;
-
-            if (Math.abs(dx) < SWIPE_MIN_PX) return;
-            if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
-            console.log("SWIPE", dx > 0 ? "cw" : "ccw");
-            onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
-          }}
-          onPointerCancelCapture={() => {
-            swipeRef.current = null;
-          }}
-
-          // ✅ iOSで pointer が不安定な時の保険（touch）
-          onTouchStartCapture={(e) => {
-            if (!isRotate) return;
-            const t = e.touches[0];
-            swipeRef.current = { x: t.clientX, y: t.clientY, active: true };
-          }}
-          onTouchEndCapture={(e) => {
-            if (!isRotate) return;
-            const s = swipeRef.current;
-            swipeRef.current = null;
-            if (!s?.active) return;
-
-            const t = e.changedTouches[0];
-            const dx = t.clientX - s.x;
-            const dy = t.clientY - s.y;
-
-            if (Math.abs(dx) < SWIPE_MIN_PX) return;
-            if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
-
-            onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
+            // iOSで選択やスクロールの誤爆を減らす
+            userSelect: "none",
+            WebkitUserSelect: "none",
           }}
         >
 
