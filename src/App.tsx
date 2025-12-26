@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Board from "./Board";
 import type { CellValue, GameMode, Phase, Player, Pos, Screen } from "./types";
 
@@ -335,67 +335,83 @@ export default function App() {
     }
     return `${who}の番：象限タップ→左右スワイプで回転して確定`;
   }, [winner, turn, phase, mode, aiSide, pendingMove]);
+  
+    const boardRef = useRef(board);
+    useEffect(() => {
+      boardRef.current = board;
+    }, [board]);
+
+    const aiBusyRef = useRef(false);
+    const aiTimersRef = useRef<number[]>([]);
+
 
   // AIの手番：自動で1手（置く＋回す）打つ
   // AIの手番：置き→象限ハイライト→回転 を段階表示
   useEffect(() => {
-    if (mode !== "ai") return;
-    if (!aiSide) return;
-    if (winner) return;
-    if (turn !== aiSide) return;
-    if (phase !== "place") return;
-    if (pendingMove) return;
+    // まず既存タイマーは掃除（安全）
+    const clearAll = () => {
+      aiTimersRef.current.forEach((id) => window.clearTimeout(id));
+      aiTimersRef.current = [];
+      aiBusyRef.current = false;
+    };
 
-    let t1: number | undefined;
-    let t2: number | undefined;
-    let t3: number | undefined;
+    if (mode !== "ai") return clearAll;
+    if (!aiSide) return clearAll;
+    if (winner) return clearAll;
+    if (turn !== aiSide) return clearAll;
 
-    // この手番で使うAI手を固定（途中でstateが変わってもブレない）
-    const m = chooseAiMove(board, aiSide);
+    // すでにこの手番のAI演出を走らせてるなら二重起動しない
+    if (aiBusyRef.current) return;
 
-    t1 = window.setTimeout(() => {
-      // ① 仮置きを見せる（pendingMoveで表示）
+    aiBusyRef.current = true;
+
+    // この手番開始時点の盤面を固定（途中で state が変わってもブレない）
+    const boardAtStart = boardRef.current;
+    const m = chooseAiMove(boardAtStart, aiSide);
+
+    // ① 置く（仮置き表示）
+    const t1 = window.setTimeout(() => {
       setPendingMove(m.pos);
       setLastMoveText(`AI: (${m.pos.x + 1}, ${m.pos.y + 1}) に置く…`);
+    }, 250);
 
-      t2 = window.setTimeout(() => {
-        // ② 象限を見せる（ハイライト）
-        setSelectedQuadrant(m.quadrant);
-        setPhase("rotate");
-        setLastMoveText(
-          `AI: ${["左上", "右上", "左下", "右下"][m.quadrant]} を${m.dir === "cw" ? "↻" : "↺"}…`
-        );
+    // ② 象限ハイライト（回す場所を見せる）
+    const t2 = window.setTimeout(() => {
+      setSelectedQuadrant(m.quadrant);
+      setPhase("rotate");
+      setLastMoveText(
+        `AI: ${["左上", "右上", "左下", "右下"][m.quadrant]} を${m.dir === "cw" ? "↻" : "↺"}…`
+      );
+    }, 900);
 
-        t3 = window.setTimeout(() => {
-          // ③ ここで確実に確定（pendingMoveがある前提）
-          const placed = cloneBoard(board);
-          placed[m.pos.y][m.pos.x] = aiSide;
+    // ③ 確定（盤面更新して手番交代）
+    const t3 = window.setTimeout(() => {
+      const r = applyMove(boardAtStart, aiSide, m.pos, m.quadrant, m.dir);
 
-          const rotated = rotateQuadrant(placed, m.quadrant, m.dir);
-          const w = checkWinner(rotated);
+      setBoard(r.board);
+      setWinner(r.winner);
+      setPendingMove(null);
+      setPhase("place");
 
-          setBoard(rotated);
-          setWinner(w);
-          setPendingMove(null);
-          setPhase("place");
+      setLastMoveText(
+        `AI: (${m.pos.x + 1}, ${m.pos.y + 1}) → ${["左上", "右上", "左下", "右下"][m.quadrant]} ${
+          m.dir === "cw" ? "↻" : "↺"
+        }`
+      );
 
-          setLastMoveText(
-            `AI: (${m.pos.x + 1}, ${m.pos.y + 1}) → ${["左上", "右上", "左下", "右下"][m.quadrant]} ${
-              m.dir === "cw" ? "↻" : "↺"
-            }`
-          );
+      if (!r.winner) setTurn(aiSide === "white" ? "black" : "white");
 
-          if (!w) setTurn(aiSide === "white" ? "black" : "white");
-        }, 450);
-      }, 650);
-    }, 300);
+      // この手番のAI演出は終了
+      aiBusyRef.current = false;
+      aiTimersRef.current = [];
+    }, 1400);
 
-    return () => {
-      if (t1) window.clearTimeout(t1);
-      if (t2) window.clearTimeout(t2);
-      if (t3) window.clearTimeout(t3);
-    };
-  }, [mode, aiSide, winner, turn, phase, pendingMove, board]);
+    aiTimersRef.current = [t1, t2, t3];
+
+    // mode/turn/winner が変わったらタイマー停止
+    return clearAll;
+  }, [mode, aiSide, turn, winner]);
+
 
 
 
