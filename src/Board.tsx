@@ -11,7 +11,6 @@ type Props = {
   selectedQuadrant: number;
   onSelectQuadrant?: (q: number) => void;
 
-  // ★追加：スワイプで回転確定（rotateフェーズ中のみ発火させる想定）
   onSwipeRotate?: (dir: "cw" | "ccw") => void;
 };
 
@@ -64,40 +63,30 @@ export default function Board({
     const isTablet = vw >= 768;
     const sideMargin = isTablet ? 32 : 24;
     const usable = vw - sideMargin * 2;
-
-    // iPadは広め、ただし暴れない上限
     const cap = isTablet ? 980 : 720;
-
     return clamp(usable, 280, cap);
   }, [vw]);
 
-  const GAP = useMemo(() => {
-    return boardSize >= 560 ? 12 : 10;
-  }, [boardSize]);
+  const GAP = useMemo(() => (boardSize >= 560 ? 12 : 10), [boardSize]);
 
   const CELL = useMemo(() => {
     const raw = (boardSize - GAP * 5) / 6;
-    // iPadで大きくしたいので上限を少し高めに
     return Math.round(clamp(raw, 38, 86));
   }, [boardSize, GAP]);
 
-  // 実寸（整数px）で作り直してズレ防止
   const GRID_W = CELL * 6 + GAP * 5;
   const GRID_H = GRID_W;
 
-  // 4分割線：中央の“ギャップ”の中心
   const MID_X = CELL * 3 + GAP * 2 + GAP / 2;
   const MID_Y = MID_X;
 
-  // ===== スワイプ回転（最小実装：左右で↺/↻）=====
-  const startRef = useRef<{ x: number; y: number } | null>(null);
+  // ===== Pointerでスワイプ検出（iPadで安定）=====
+  const swipeRef = useRef<{ x: number; y: number; active: boolean } | null>(null);
   const SWIPE_MIN_PX = 28;
-  const SWIPE_MAX_ANGLE = 0.6; // 縦成分が強いスワイプを無視
+  const SWIPE_MAX_ANGLE = 0.6; // dyが大きい(縦スクロール系)は無視
 
   return (
-    // 外側は中央寄せのみ（背景は内側に持たせる）
     <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-      {/* 背景ボード（穴幅にフィット） */}
       <div
         style={{
           display: "inline-block",
@@ -109,34 +98,39 @@ export default function Board({
           boxShadow: "0 18px 44px rgba(0,0,0,0.22)",
         }}
       >
-        {/* 盤面本体（実寸固定） */}
         <div
           style={{
             width: GRID_W,
             height: GRID_H,
             position: "relative",
-          }}
-          onTouchStart={(e) => {
-            if (!isRotate) return;
-            const t = e.touches[0];
-            startRef.current = { x: t.clientX, y: t.clientY };
-          }}
-          onTouchEnd={(e) => {
-            if (!isRotate) return;
-            const s = startRef.current;
-            startRef.current = null;
-            if (!s) return;
 
-            const t = e.changedTouches[0];
-            const dx = t.clientX - s.x;
-            const dy = t.clientY - s.y;
+            // ★ここが重要：rotate中はスクロールに奪われないようにする
+            touchAction: isRotate ? "none" : "manipulation",
+          }}
+          onPointerDown={(e) => {
+            if (!isRotate) return;
+            // 盤面内でのスワイプだけ取る
+            swipeRef.current = { x: e.clientX, y: e.clientY, active: true };
+            // ポインタを捕まえる（外に出てもUP拾える）
+            (e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId);
+          }}
+          onPointerUp={(e) => {
+            if (!isRotate) return;
+            const s = swipeRef.current;
+            swipeRef.current = null;
+            if (!s || !s.active) return;
 
-            // 横スワイプのみ採用
+            const dx = e.clientX - s.x;
+            const dy = e.clientY - s.y;
+
             if (Math.abs(dx) < SWIPE_MIN_PX) return;
             if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
 
             const dir: "cw" | "ccw" = dx > 0 ? "cw" : "ccw";
             onSwipeRotate?.(dir);
+          }}
+          onPointerCancel={() => {
+            swipeRef.current = null;
           }}
         >
           {/* 4分割線（縦） */}
@@ -182,7 +176,6 @@ export default function Board({
               gridTemplateRows: `repeat(6, ${CELL}px)`,
               gap: GAP,
               userSelect: "none",
-              touchAction: "manipulation",
             }}
           >
             {board.map((row, y) =>
@@ -199,6 +192,7 @@ export default function Board({
                 return (
                   <div
                     key={`${x}-${y}`}
+                    // clickは維持（象限タップ/仮置き）
                     onClick={() => {
                       if (isRotate) {
                         onSelectQuadrant?.(q);
@@ -224,7 +218,6 @@ export default function Board({
                       transition: "background 0.12s ease, border 0.12s ease",
                     }}
                   >
-                    {/* 石（または仮置き） */}
                     {renderVal && (
                       <div
                         aria-hidden
@@ -242,7 +235,6 @@ export default function Board({
                       />
                     )}
 
-                    {/* 仮置きリング */}
                     {isPending && (
                       <div
                         aria-hidden
@@ -263,7 +255,6 @@ export default function Board({
           </div>
         </div>
 
-        {/* rotate時の説明 */}
         {isRotate && (
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.92, color: "rgba(255,255,255,0.88)" }}>
             象限：{["左上", "右上", "左下", "右下"][selectedQuadrant]}（盤面タップで選択）／
