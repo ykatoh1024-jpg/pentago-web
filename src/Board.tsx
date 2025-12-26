@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CellValue, Phase, Player, Pos } from "./types";
 
 type Props = {
@@ -31,79 +31,86 @@ export default function Board({
   selectedQuadrant,
   onSelectQuadrant,
 }: Props) {
-  const GAP = 10;
-  const CELL = 46;
-  const PAD = 10;
-
-  // 盤面の“実寸”（グリッド部分）
-  const GRID_W = CELL * 6 + GAP * 5;
-  const GRID_H = CELL * 6 + GAP * 5;
-
-  // 3×3と3×3の境界（真ん中の“ギャップ”の中央）
-  const MID_X = CELL * 3 + GAP * 2 + GAP / 2;
-  const MID_Y = CELL * 3 + GAP * 2 + GAP / 2;
-
   const isRotate = phase === "rotate";
 
-  // 深紅（ボード色）
-  const BOARD_COLOR = "#8B0000";
-  const LINE_COLOR = "rgba(255,255,255,0.35)";
+  // ===== 見た目（深紅） =====
+  const BOARD_COLOR_TOP = "#8B0000"; // 深紅
+  const BOARD_COLOR_BOTTOM = "#5c0011";
+  const LINE_COLOR = "rgba(255,255,255,0.40)";
   const HOLE_BG = "rgba(0,0,0,0.18)";
   const HOLE_BORDER = "rgba(255,255,255,0.18)";
 
-  // ===== iPad最適化：盤面を中央寄せ & 自動スケール =====
-  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 390));
+  // ===== レスポンシブ寸法（iPad最適化の核）=====
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [wrapW, setWrapW] = useState<number>(0);
+
   useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
+    if (!wrapRef.current) return;
+    const el = wrapRef.current;
+
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width ?? 0;
+      setWrapW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  const scale = useMemo(() => {
-    // 盤面コンテナに左右 padding を少し残して収める
-    const safePadding = 24; // iPadで余白を残しつつ最大化
-    const available = vw - safePadding * 2;
+  // ボードの描画幅（iPadでは自然に大きく）
+  const boardSize = useMemo(() => {
+    // 画面に対してできるだけ大きく。ただしデカすぎ防止
+    // iPad横でも気持ちよく：最大 720px くらいまで許可
+    return clamp(wrapW, 280, 720);
+  }, [wrapW]);
 
-    // iPad帯は大きくしてOK。スマホは等倍〜少しだけ。
-    const isIPadLike = vw >= 768 && vw <= 1024;
+  // ギャップは少しだけスケール（iPadで気持ちよい）
+  const GAP = useMemo(() => {
+    // 560px以上なら少し広く
+    return boardSize >= 560 ? 12 : 10;
+  }, [boardSize]);
 
-    // ここで “盤面（GRID_W）” を画面幅にフィットするようにスケール
-    const raw = available / GRID_W;
+  // CELLは “boardSize から逆算”
+  const CELL = useMemo(() => {
+    const raw = (boardSize - GAP * 5) / 6;
+    // 小さすぎ/大きすぎ防止
+    return Math.round(clamp(raw, 38, 72));
+  }, [boardSize, GAP]);
 
-    if (isIPadLike) return clamp(raw, 1.15, 1.75); // iPadは大きく見せたい
-    return clamp(raw, 0.92, 1.12); // スマホは崩さない範囲
-  }, [vw, GRID_W]);
+  // 実際のグリッド実寸（ピクセル誤差を消すため、CELLで再構成）
+  const GRID_W = CELL * 6 + GAP * 5;
+  const GRID_H = GRID_W;
+
+  // 4分割線の位置（“真ん中のギャップの中心”）
+  const MID_X = CELL * 3 + GAP * 2 + GAP / 2;
+  const MID_Y = MID_X;
 
   return (
     <div
       style={{
         width: "100%",
         borderRadius: 22,
-        padding: PAD,
+        padding: 12,
         boxSizing: "border-box",
-        background: `linear-gradient(180deg, ${BOARD_COLOR}, #6e0014)`,
+        background: `linear-gradient(180deg, ${BOARD_COLOR_TOP}, ${BOARD_COLOR_BOTTOM})`,
         border: "1px solid rgba(255,255,255,0.10)",
         boxShadow: "0 18px 44px rgba(0,0,0,0.22)",
-        // sticky操作に隠れず、iPadでも詰まらない
-        marginBottom: 10,
       }}
     >
-      {/* 中央寄せを確実にするためのラッパー */}
+      {/* このラッパーが“中央寄せ＆iPadで大きく”を担う */}
       <div
+        ref={wrapRef}
         style={{
           width: "100%",
           display: "flex",
           justifyContent: "center",
         }}
       >
-        {/* scaleの基準点を中央に固定（左寄りを防止） */}
+        {/* ここは実寸固定。左右に余白が出ても中央に来る */}
         <div
           style={{
             width: GRID_W,
             height: GRID_H,
             position: "relative",
-            transform: `scale(${scale})`,
-            transformOrigin: "center center",
           }}
         >
           {/* 4分割線（縦） */}
@@ -139,7 +146,7 @@ export default function Board({
             }}
           />
 
-          {/* 盤面セル */}
+          {/* セル */}
           <div
             style={{
               position: "absolute",
@@ -159,6 +166,9 @@ export default function Board({
 
                 const isPending = pendingMove && pendingMove.x === x && pendingMove.y === y;
                 const renderVal: CellValue = isPending ? turn : v;
+
+                // 石の内側余白もCELLに比例
+                const inset = Math.round(CELL * 0.15); // 例: 46→7, 70→11
 
                 return (
                   <div
@@ -192,7 +202,7 @@ export default function Board({
                         aria-hidden
                         style={{
                           position: "absolute",
-                          inset: 7,
+                          inset,
                           borderRadius: 999,
                           background: renderVal === "white" ? "white" : "#111827",
                           boxShadow:
@@ -210,7 +220,7 @@ export default function Board({
                         aria-hidden
                         style={{
                           position: "absolute",
-                          inset: 3,
+                          inset: Math.max(2, Math.round(CELL * 0.06)),
                           borderRadius: 999,
                           border: "2px dashed rgba(255,255,255,0.70)",
                           boxShadow: "0 0 0 3px rgba(255,255,255,0.12)",
@@ -227,10 +237,11 @@ export default function Board({
       </div>
 
       {phase === "rotate" && (
-        <div style={{ marginTop: 10, fontSize: 12, opacity: 0.9, color: "rgba(255,255,255,0.88)" }}>
+        <div style={{ marginTop: 10, fontSize: 12, opacity: 0.92, color: "rgba(255,255,255,0.88)" }}>
           象限：{["左上", "右上", "左下", "右下"][selectedQuadrant]}（盤面タップで切替）
         </div>
       )}
     </div>
   );
 }
+
