@@ -232,6 +232,51 @@ export default function Board({
             WebkitUserSelect: "none",
           }}
         >
+
+          {/* Selected Quadrant Highlight */}
+          {isRotate && (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+              }}
+            >
+              {([0, 1, 2, 3] as const).map((q) => {
+                const isSel = q === selectedQuadrant;
+
+                const left = q % 2 === 0 ? 0 : GRID_W / 2;
+                const top = q < 2 ? 0 : GRID_H / 2;
+
+                return (
+                  <div
+                    key={q}
+                    style={{
+                      position: "absolute",
+                      left,
+                      top,
+                      width: GRID_W / 2,
+                      height: GRID_H / 2,
+                      background: isSel
+                        ? "rgba(255,255,255,0.10)"
+                        : "rgba(0,0,0,0.18)",
+                      boxShadow: isSel
+                        ? "inset 0 0 0 2px rgba(255,255,255,0.55), 0 0 18px rgba(255,255,255,0.25)"
+                        : "none",
+                      
+                      transform: isSel ? "translateZ(0) scale(1.01)" : "none",
+
+                      transition: "background 0.15s ease, box-shadow 0.15s ease",
+                      borderRadius: 12,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+
           {/* 4分割線 */}
           <div
             aria-hidden
