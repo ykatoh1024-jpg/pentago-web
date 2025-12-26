@@ -18,6 +18,22 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function getQuadrantCenter(
+  rect: DOMRect,
+  quadrant: number
+): { cx: number; cy: number } {
+  const halfW = rect.width / 2;
+  const halfH = rect.height / 2;
+
+  const qx = quadrant % 2;      // 0 or 1
+  const qy = quadrant < 2 ? 0 : 1;
+
+  return {
+    cx: rect.left + halfW * (qx + 0.5),
+    cy: rect.top + halfH * (qy + 0.5),
+  };
+}
+
 export default function Board({
   board,
   turn,
@@ -104,8 +120,7 @@ export default function Board({
       sy = t.clientY;
 
       const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
+      const { cx, cy } = getQuadrantCenter(rect, selectedQuadrant);
 
       startRX = sx - cx;
       startRY = sy - cy;
