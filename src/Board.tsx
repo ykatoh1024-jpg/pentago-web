@@ -85,9 +85,12 @@ export default function Board({
   const MID_Y = MID_X;
 
   return (
+  // ★外側は“中央寄せ専用”。背景は持たない
+  <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+    {/* ★この内側だけがボード本体（幅はGRIDにフィット） */}
     <div
       style={{
-        width: "100%",
+        display: "inline-block",
         borderRadius: 22,
         padding: 12,
         boxSizing: "border-box",
@@ -96,143 +99,131 @@ export default function Board({
         boxShadow: "0 18px 44px rgba(0,0,0,0.22)",
       }}
     >
-      {/* このラッパーが“中央寄せ＆iPadで大きく”を担う */}
+      {/* ラッパー：幅計測したいので ref はここに付ける */}
       <div
         ref={wrapRef}
         style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
+          width: GRID_W,          // ★ボードの中身幅＝穴の幅
+          height: GRID_H,
+          position: "relative",
         }}
       >
-        {/* ここは実寸固定。左右に余白が出ても中央に来る */}
+        {/* 4分割線（縦） */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -2,
+            bottom: -2,
+            left: MID_X,
+            width: 3,
+            transform: "translateX(-1.5px)",
+            background: LINE_COLOR,
+            borderRadius: 999,
+            pointerEvents: "none",
+            boxShadow: "0 0 0 1px rgba(0,0,0,0.18)",
+          }}
+        />
+        {/* 4分割線（横） */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: -2,
+            right: -2,
+            top: MID_Y,
+            height: 3,
+            transform: "translateY(-1.5px)",
+            background: LINE_COLOR,
+            borderRadius: 999,
+            pointerEvents: "none",
+            boxShadow: "0 0 0 1px rgba(0,0,0,0.18)",
+          }}
+        />
+
+        {/* セル */}
         <div
           style={{
-            width: GRID_W,
-            height: GRID_H,
-            position: "relative",
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            gridTemplateColumns: `repeat(6, ${CELL}px)`,
+            gridTemplateRows: `repeat(6, ${CELL}px)`,
+            gap: GAP,
+            userSelect: "none",
+            touchAction: "manipulation",
           }}
         >
-          {/* 4分割線（縦） */}
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: -2,
-              bottom: -2,
-              left: MID_X,
-              width: 3,
-              transform: "translateX(-1.5px)",
-              background: LINE_COLOR,
-              borderRadius: 999,
-              pointerEvents: "none",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.18)",
-            }}
-          />
-          {/* 4分割線（横） */}
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: -2,
-              right: -2,
-              top: MID_Y,
-              height: 3,
-              transform: "translateY(-1.5px)",
-              background: LINE_COLOR,
-              borderRadius: 999,
-              pointerEvents: "none",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.18)",
-            }}
-          />
+          {board.map((row, y) =>
+            row.map((v, x) => {
+              const q = quadrantFromCell(x, y);
+              const isSelectedQ = isRotate && q === selectedQuadrant;
 
-          {/* セル */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "grid",
-              gridTemplateColumns: `repeat(6, ${CELL}px)`,
-              gridTemplateRows: `repeat(6, ${CELL}px)`,
-              gap: GAP,
-              userSelect: "none",
-              touchAction: "manipulation",
-            }}
-          >
-            {board.map((row, y) =>
-              row.map((v, x) => {
-                const q = quadrantFromCell(x, y);
-                const isSelectedQ = isRotate && q === selectedQuadrant;
+              const isPending = pendingMove && pendingMove.x === x && pendingMove.y === y;
+              const renderVal: CellValue = isPending ? turn : v;
 
-                const isPending = pendingMove && pendingMove.x === x && pendingMove.y === y;
-                const renderVal: CellValue = isPending ? turn : v;
+              const inset = Math.round(CELL * 0.15);
 
-                // 石の内側余白もCELLに比例
-                const inset = Math.round(CELL * 0.15); // 例: 46→7, 70→11
+              return (
+                <div
+                  key={`${x}-${y}`}
+                  onClick={() => {
+                    if (isRotate) {
+                      onSelectQuadrant?.(q);
+                      return;
+                    }
+                    onTapCell({ x, y });
+                  }}
+                  role="button"
+                  aria-label={`cell-${x}-${y}`}
+                  style={{
+                    width: CELL,
+                    height: CELL,
+                    borderRadius: 999,
+                    background: isSelectedQ ? "rgba(255,255,255,0.12)" : HOLE_BG,
+                    border: isSelectedQ ? "2px solid rgba(255,255,255,0.42)" : `1px solid ${HOLE_BORDER}`,
+                    boxSizing: "border-box",
+                    position: "relative",
+                    cursor: "pointer",
+                    outline: isSelectedQ ? "2px solid rgba(0,0,0,0.25)" : "none",
+                    outlineOffset: 2,
+                    transition: "background 0.12s ease, border 0.12s ease",
+                  }}
+                >
+                  {renderVal && (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        inset,
+                        borderRadius: 999,
+                        background: renderVal === "white" ? "white" : "#111827",
+                        boxShadow:
+                          renderVal === "white"
+                            ? "0 10px 18px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(17,24,39,0.22)"
+                            : "0 10px 18px rgba(0,0,0,0.30), inset 0 0 0 1px rgba(255,255,255,0.12)",
+                        opacity: isPending ? 0.78 : 1,
+                      }}
+                    />
+                  )}
 
-                return (
-                  <div
-                    key={`${x}-${y}`}
-                    onClick={() => {
-                      if (isRotate) {
-                        onSelectQuadrant?.(q);
-                        return;
-                      }
-                      onTapCell({ x, y });
-                    }}
-                    role="button"
-                    aria-label={`cell-${x}-${y}`}
-                    style={{
-                      width: CELL,
-                      height: CELL,
-                      borderRadius: 999,
-                      background: isSelectedQ ? "rgba(255,255,255,0.12)" : HOLE_BG,
-                      border: isSelectedQ ? "2px solid rgba(255,255,255,0.42)" : `1px solid ${HOLE_BORDER}`,
-                      boxSizing: "border-box",
-                      position: "relative",
-                      cursor: "pointer",
-                      outline: isSelectedQ ? "2px solid rgba(0,0,0,0.25)" : "none",
-                      outlineOffset: 2,
-                      transition: "background 0.12s ease, border 0.12s ease",
-                    }}
-                  >
-                    {/* 石（または仮置き） */}
-                    {renderVal && (
-                      <div
-                        aria-hidden
-                        style={{
-                          position: "absolute",
-                          inset,
-                          borderRadius: 999,
-                          background: renderVal === "white" ? "white" : "#111827",
-                          boxShadow:
-                            renderVal === "white"
-                              ? "0 10px 18px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(17,24,39,0.22)"
-                              : "0 10px 18px rgba(0,0,0,0.30), inset 0 0 0 1px rgba(255,255,255,0.12)",
-                          opacity: isPending ? 0.78 : 1,
-                        }}
-                      />
-                    )}
-
-                    {/* 仮置きリング */}
-                    {isPending && (
-                      <div
-                        aria-hidden
-                        style={{
-                          position: "absolute",
-                          inset: Math.max(2, Math.round(CELL * 0.06)),
-                          borderRadius: 999,
-                          border: "2px dashed rgba(255,255,255,0.70)",
-                          boxShadow: "0 0 0 3px rgba(255,255,255,0.12)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  {isPending && (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        inset: Math.max(2, Math.round(CELL * 0.06)),
+                        borderRadius: 999,
+                        border: "2px dashed rgba(255,255,255,0.70)",
+                        boxShadow: "0 0 0 3px rgba(255,255,255,0.12)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -242,6 +233,8 @@ export default function Board({
         </div>
       )}
     </div>
-  );
+  </div>
+);
+
 }
 
