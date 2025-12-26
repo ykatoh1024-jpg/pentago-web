@@ -66,3 +66,28 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* ===== iPad含む全体の“左寄り”対策 ===== */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+/* Safari(iPad)で妙な横スクロールや寄りが出るのを抑える */
+body {
+  overflow-x: hidden;
+}
+
+/* もしどこかで max-width や transform が当たっていても中央寄せを優先 */
+@media (min-width: 768px) {
+  #root {
+    display: block;
+  }
+}
