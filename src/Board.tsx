@@ -36,6 +36,8 @@ export default function Board({
 }: Props) {
   const isRotate = phase === "rotate";
   const swipeZoneRef = useRef<HTMLDivElement | null>(null);
+  const [debugSwipe, setDebugSwipe] = useState<string>("");
+
 
   // ===== 見た目（深紅） =====
   const BOARD_COLOR_TOP = "#8B0000";
@@ -103,8 +105,9 @@ export default function Board({
 
       if (Math.abs(dx) < SWIPE_MIN_PX) return;
       if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
-
+      setDebugSwipe(`swipe dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${dx > 0 ? "cw" : "ccw"}`);
       onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
+      setDebugSwipe((s) => s + " ✅ fired");
     };
 
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -293,6 +296,11 @@ export default function Board({
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.92, color: "rgba(255,255,255,0.88)" }}>
             象限：{["左上", "右上", "左下", "右下"][selectedQuadrant]}（盤面タップで選択）／
             左右スワイプで回転（左↺・右↻）
+          </div>
+        )}
+        {isRotate && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.9)" }}>
+            {debugSwipe || "swipe: (no data yet)"}
           </div>
         )}
       </div>
