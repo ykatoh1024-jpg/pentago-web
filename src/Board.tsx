@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CellValue, Phase, Player, Pos } from "./types";
 
 type Props = {
@@ -41,41 +41,40 @@ export default function Board({
   const HOLE_BORDER = "rgba(255,255,255,0.18)";
 
   // ===== レスポンシブ寸法（iPad最適化の核）=====
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [wrapW, setWrapW] = useState<number>(0);
+  const [vw, setVw] = useState<number>(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1024
+  );
 
   useEffect(() => {
-    if (!wrapRef.current) return;
-    const el = wrapRef.current;
+    const update = () => setVw(window.innerWidth);
 
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect?.width ?? 0;
-      setWrapW(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
+    // 初回も同期しておく（iPadで効くことがある）
+    update();
+
+    window.addEventListener("resize", update, { passive: true });
+    window.addEventListener("orientationchange", update, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
   }, []);
 
-  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
-  useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
 
   // ボードの描画幅（iPadでは自然に大きく）
   const boardSize = useMemo(() => {
-  // iPadはほぼ画面幅いっぱいまで使う（左右に余白を少し残す）
-  // SafariのUIや安全マージンを見て少し控えめに
-  const side = vw >= 768 ? 32 : 24; // iPad: 32px, phone:24px
-  const usable = vw - side * 2;
+    const isTablet = vw >= 768;
+    const sideMargin = isTablet ? 32 : 24;
 
-  // 盤面は正方形。iPad横でも暴れない上限を持たせる
-  const cap = vw >= 768 ? 980 : 720;
+    const usable = vw - sideMargin * 2;
 
-  return clamp(usable, 280, cap);
-}, [vw]);
+    // iPadは大きく、暴れない上限つき
+    const max = isTablet ? 980 : 720;
+
+    return Math.max(280, Math.min(usable, max));
+  }, [vw]);
+
 
 
   // ギャップは少しだけスケール（iPadで気持ちよい）
@@ -87,9 +86,9 @@ export default function Board({
   // CELLは “boardSize から逆算”
   const CELL = useMemo(() => {
     const raw = (boardSize - GAP * 5) / 6;
-    // 小さすぎ/大きすぎ防止
-    return Math.round(clamp(raw, 38, 72));
+    return Math.round(Math.max(38, Math.min(raw, 86)));
   }, [boardSize, GAP]);
+
 
   // 実際のグリッド実寸（ピクセル誤差を消すため、CELLで再構成）
   const GRID_W = CELL * 6 + GAP * 5;
@@ -116,7 +115,6 @@ export default function Board({
     >
       {/* ラッパー：幅計測したいので ref はここに付ける */}
       <div
-        ref={wrapRef}
         style={{
           width: GRID_W,          // ★ボードの中身幅＝穴の幅
           height: GRID_H,
