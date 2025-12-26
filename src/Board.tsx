@@ -125,7 +125,7 @@ export default function Board({
 
             if (Math.abs(dx) < SWIPE_MIN_PX) return;
             if (Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_ANGLE) return;
-
+            console.log("SWIPE", dx > 0 ? "cw" : "ccw");
             onSwipeRotate?.(dx > 0 ? "cw" : "ccw");
           }}
           onPointerCancelCapture={() => {
